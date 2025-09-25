@@ -3,13 +3,15 @@ A web platform for pdf watermarking. This project is intended for pedagogical us
 
 ## Instructions
 
+The following instructions are meant for a bash terminal on a Linux machine. If you are using something else, you will need to adapt them.
+
 To clone the repo, you can simply run:
 
 ```bash
 git clone https://github.com/nharrand/tatou.git
 ```
 
-Note that you should probably for the repo and clone your own repo.
+Note that you should probably fork the repo and clone your own repo.
 
 
 ### Run python unit tests
