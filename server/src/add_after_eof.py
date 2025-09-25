@@ -27,7 +27,7 @@ import hashlib
 import hmac
 import json
 
-from watermarking_method import (
+from .watermarking_method import (
     InvalidKeyError,
     SecretNotFoundError,
     WatermarkingError,

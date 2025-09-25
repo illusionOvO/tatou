@@ -36,13 +36,14 @@ import json
 import os
 import re
 
-from watermarking_method import (
+from .watermarking_method import (
     PdfSource,
     WatermarkingMethod,
     load_pdf_bytes,
 )
-from add_after_eof import AddAfterEOF
-from unsafe_bash_bridge_append_eof import UnsafeBashBridgeAppendEOF
+from .add_after_eof import AddAfterEOF
+from .visible_text import VisibleTextWatermark
+from .metadata_watermark import MetadataWatermark
 
 # --------------------
 # Method registry
@@ -50,7 +51,8 @@ from unsafe_bash_bridge_append_eof import UnsafeBashBridgeAppendEOF
 
 METHODS: Dict[str, WatermarkingMethod] = {
     AddAfterEOF.name: AddAfterEOF(),
-    UnsafeBashBridgeAppendEOF.name: UnsafeBashBridgeAppendEOF()
+    VisibleTextWatermark.name: VisibleTextWatermark(),
+    MetadataWatermark.name: MetadataWatermark(),
 }
 """Registry of available watermarking methods.
 

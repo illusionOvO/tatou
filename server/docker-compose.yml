@@ -1,0 +1,44 @@
+version: "3.8"
+
+services:
+  db:
+    image: mysql:8.0
+    environment:
+      MYSQL_DATABASE: tatou
+      MYSQL_USER: tatou
+      MYSQL_PASSWORD: tatou
+      MYSQL_ROOT_PASSWORD: root
+    ports:
+      - "3306:3306"
+    healthcheck:   # 等数据库准备好
+      test: ["CMD-SHELL", "mysqladmin ping -h localhost -proot --silent"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+  server:
+    image: python:3.12-slim
+    working_dir: /app
+    environment:
+      PYTHONUNBUFFERED: "1"
+      PYTHONDONTWRITEBYTECODE: "1"
+      PYTHONPATH: /app
+      SECRET_KEY: dev-secret-change-me
+      STORAGE_DIR: /app/storage
+      TOKEN_TTL_SECONDS: "86400"
+      DB_USER: tatou
+      DB_PASSWORD: tatou
+      DB_HOST: db
+      DB_PORT: "3306"
+      DB_NAME: tatou
+    volumes:
+      - .:/app    # 把你本地代码挂到容器里（这样你本地改代码，容器里也会更新）
+    command: >
+      sh -c "pip install flask itsdangerous werkzeug sqlalchemy pymysql dill gunicorn &&
+             python -m server.src.server"
+    ports:
+      - "5000:5000"
+    depends_on:
+      db:
+        condition: service_healthy
+    restart: unless-stopped
