@@ -24,9 +24,9 @@ RUN pip install --no-cache-dir -e .
 EXPOSE 5000
 
 # Default command runs the web server
-<<<<<<< HEAD
+
 CMD ["gunicorn", "-b", "0.0.0.0:5000", "server.src.server:app"]
-=======
-CMD ["./entrypoint.sh"]
->>>>>>> 568f7f4651c1599a530b94d7100991faf63d11bb
+
+
+
 
