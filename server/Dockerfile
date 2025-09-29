@@ -10,22 +10,22 @@ RUN apt-get update \
  && apt-get install -y --no-install-recommends git ca-certificates openssh-client \
  && rm -rf /var/lib/apt/lists/*
 
-# Copy project description, to instal dependencies
+# Copy project description, to install dependencies
 COPY pyproject.toml /app/pyproject.toml
 
 
 
 # Copy sources after dependencies installation
-COPY . /app/server
+COPY ./app/server
 COPY flag /app/flag
 COPY entrypoint.sh /app/entrypoint.sh
-RUN pip install --no-cache-dir -e .
+RUN pip install --no-cache-dir -e.
 
 EXPOSE 5000
 
 # Default command runs the web server
 
-CMD ["gunicorn", "-b", "0.0.0.0:5000", "server.src.server:app"]
+CMD ["gunicorn", "-b", "0.0.0.0:5000", "server.src.server: app"]
 
 
 
