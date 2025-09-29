@@ -16,7 +16,7 @@ COPY pyproject.toml /app/pyproject.toml
 
 
 # Copy sources after dependencies installation
-COPY ./app/server
+COPY . /app/server
 COPY flag /app/flag
 COPY entrypoint.sh /app/entrypoint.sh
 RUN pip install --no-cache-dir -e.
