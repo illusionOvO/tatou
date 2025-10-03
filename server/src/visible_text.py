@@ -45,8 +45,7 @@ class VisibleTextWatermark(WatermarkingMethod):
                 text,
                 fontsize=50,
                 rotate=45,
-                color=(0.5, 0.5, 0.5),
-                opacity=0.5,
+                color=(0.6, 0.6, 0.6),
                 overlay=True,
             )
 
