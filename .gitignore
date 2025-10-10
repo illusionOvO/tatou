@@ -135,7 +135,6 @@ celerybeat.pid
 *.sage.py
 
 # Environments
-.env
 .envrc
 .venv
 env/
@@ -205,3 +204,64 @@ cython_debug/
 marimo/_static/
 marimo/_lsp/
 __marimo__/
+
+
+# --- Tatou / RMAP 项目特定 ---
+# 拦所有层级的私钥
+**/*_priv*.asc
+**/*.key
+**/*.pem
+**/*.pfx
+**/*.p12
+
+# 显式放行公钥（在私钥规则之后写）
+!**/*_pub*.asc
+!**/*.pub
+
+# 环境变量与本地配置（已包含 .env，这里保底）
+.env
+*.env.local
+*.secret
+secrets.yml
+secrets.yaml
+
+# 真实 flag（建议用 sample_flag 放库里，真值只放部署环境）
+tatou/flag
+flag
+/app/flag
+
+# Docker 数据卷/输出（你已有 db-data/；这里再保底一层）
+db-data/
+user-files/
+docker-data/
+*.log
+
+# 系统杂项
+.DS_Store
+Thumbs.db
+
+
+# ---- 运行期产物（你的服务会把水印 PDF 写到 storage/）----
+storage/
+storage/**
+
+# 如果把 secrets 放本地目录或挂载成文件
+secrets/
+secrets/**
+
+# 更通用的证书/密钥后缀（有些团队会用到）
+*.pfx
+*.p12
+
+# SQLite 等本地数据库（除了你已加的 db.sqlite3）
+*.sqlite
+*.sqlite3
+*.db
+
+# Windows/Unix 常见杂项（你已加 Thumbs.db，补充一条）
+*.swp
+
+
+.venv/
+db/
+

@@ -19,17 +19,10 @@ try:
 except Exception:  # dill is optional
     _pickle = _std_pickle
 
+from .rmap_routes import bp as rmap_bp
+from . import watermarking_utils as WMUtils
+from .watermarking_method import WatermarkingMethod
 
-
-try:
-    # 包内运行（pytest、本地 python -m、包结构）
-    #from watermarking_utils import METHODS, apply_watermark, read_watermark, explore_pdf, is_watermarking_applicable, get_method
-    from . import watermarking_utils as WMUtils
-    from .watermarking_method import WatermarkingMethod
-except ImportError:
-    # 单文件模块运行（容器里被当成 /app/src/server.py 的情况）
-    import watermarking_utils as WMUtils
-    from watermarking_method import WatermarkingMethod
 
 def create_app():
     app = Flask(__name__)
@@ -39,6 +32,11 @@ def create_app():
     app.config["STORAGE_DIR"] = Path(os.environ.get("STORAGE_DIR", "./storage")).resolve()
     app.config["TOKEN_TTL_SECONDS"] = int(os.environ.get("TOKEN_TTL_SECONDS", "86400"))
 
+    app.config["RMAP_KEYS_DIR"]    = os.getenv("RMAP_KEYS_DIR", "/app/server/keys/clients")
+    app.config["RMAP_SERVER_PUB"]  = os.getenv("RMAP_SERVER_PUB", "/app/server/keys/server_pub.asc")
+    app.config["RMAP_SERVER_PRIV"] = os.getenv("RMAP_SERVER_PRIV", "/app/server/keys/server_priv.asc")
+    app.register_blueprint(rmap_bp, url_prefix="/api")
+    
     app.config["DB_USER"] = os.environ.get("DB_USER", "tatou")
     app.config["DB_PASSWORD"] = os.environ.get("DB_PASSWORD", "tatou")
     app.config["DB_HOST"] = os.environ.get("DB_HOST", "db")

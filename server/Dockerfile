@@ -2,7 +2,8 @@
 FROM python:3.12-slim
 
 ENV PYTHONDONTWRITEBYTECODE=1 \
-    PYTHONUNBUFFERED=1
+    PYTHONUNBUFFERED=1 \
+    PYTHONPATH=/app
 
 WORKDIR /app
 
@@ -11,22 +12,16 @@ RUN apt-get update \
  && rm -rf /var/lib/apt/lists/*
 
 # Copy project description, to instal dependencies
-COPY pyproject.toml /app/pyproject.toml
+COPY requirements.txt .
+RUN pip install --no-cache-dir -r requirements.txt
 
-
+COPY  . .
 
 # Copy sources after dependencies installation
-COPY . /app/server
-COPY flag /app/flag
-COPY entrypoint.sh /app/entrypoint.sh
-RUN pip install --no-cache-dir -e .
+RUN [ -f "/app/entrypoint.sh" ] && chmod +x /app/entrypoint.sh || true
 
 EXPOSE 5000
 
 # Default command runs the web server
-<<<<<<< HEAD
 CMD ["gunicorn", "-b", "0.0.0.0:5000", "server.src.server:app"]
-=======
-CMD ["./entrypoint.sh"]
->>>>>>> 568f7f4651c1599a530b94d7100991faf63d11bb
-
+# CMD ["./entrypoint.sh"]
