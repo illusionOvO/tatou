@@ -287,3 +287,9 @@ sample.pdf# --- local test artifacts ---
 
 # never commit private keys
 server/keys/*_priv.asc
+body*.json
+msg*.json
+msg*.asc
+resp*.asc
+resp*.json
+sample.pdf
