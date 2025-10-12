@@ -9,6 +9,7 @@ from flask import Flask, jsonify, request, g, send_file
 from werkzeug.utils import secure_filename
 from werkzeug.security import generate_password_hash, check_password_hash
 from itsdangerous import URLSafeTimedSerializer, BadSignature, SignatureExpired
+from server.src.rmap_routes import bp
 
 from sqlalchemy import create_engine, text
 from sqlalchemy.exc import IntegrityError
@@ -35,7 +36,7 @@ def create_app():
     app.config["RMAP_KEYS_DIR"]    = os.getenv("RMAP_KEYS_DIR", "/app/server/keys/clients")
     app.config["RMAP_SERVER_PUB"]  = os.getenv("RMAP_SERVER_PUB", "/app/server/keys/server_pub.asc")
     app.config["RMAP_SERVER_PRIV"] = os.getenv("RMAP_SERVER_PRIV", "/app/server/keys/server_priv.asc")
-    app.register_blueprint(rmap_bp, url_prefix="/api")
+    app.register_blueprint(bp)
     
     app.config["DB_USER"] = os.environ.get("DB_USER", "tatou")
     app.config["DB_PASSWORD"] = os.environ.get("DB_PASSWORD", "tatou")

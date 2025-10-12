@@ -4,13 +4,13 @@ services:
       context: .
       dockerfile: server/Dockerfile
     ports:
-    - 5000:5000
+      - 5000:5000
     env_file:
-    - .env
+      - .env
     environment:
-      PYTHONUNBUFFERED: '1'
+      PYTHONUNBUFFERED: "1"
       DB_HOST: db
-      DB_PORT: '3306'
+      DB_PORT: "3306"
       DB_NAME: tatou
       DB_USER: ${MARIADB_USER}
       DB_PASSWORD: ${MARIADB_PASSWORD}
@@ -18,37 +18,44 @@ services:
       RMAP_KEYS_DIR: /app/server/keys/clients
       RMAP_SERVER_PUB: /app/server/keys/server_pub.asc
       RMAP_SERVER_PRIV: /app/server/keys/server_priv.asc
+      RMAP_INPUT_PDF: /app/sample.pdf
+      STORAGE_DIR: /app/storage
+      WATERMARK_HMAC_KEY: ${WATERMARK_HMAC_KEY}
+
     volumes:
-    - user-files:/app/storage
-    - ./server/keys/server_pub.asc:/app/server/keys/server_pub.asc:ro
-    - ./server/keys/server_priv.asc:/app/server/keys/server_priv.asc:ro
-    - ./server/keys/clients:/app/server/keys/clients:ro
-    - ./server:/app/server
-    - ./storage:/app/storage
+      - user-files:/app/storage
+      - ./server/keys/server_pub.asc:/app/server/keys/server_pub.asc:ro
+      - ./server/keys/server_priv.asc:/app/server/keys/server_priv.asc:ro
+      - ./server/keys/clients:/app/server/keys/clients:ro
+      - ./server:/app/server
+      - ./storage:/app/storage
+      - ./server/keys:/app/server/keys:ro # 让容器能读到 keys
+      - ./sample.pdf:/app/sample.pdf:ro # ← 把你刚放的 sample.pdf 映射进去
+      - ./storage:/app/storage # 水印输出目录（建议 .gitignore 忽略）
     depends_on:
       db:
         condition: service_healthy
     restart: unless-stopped
     secrets:
-    - server_priv
+      - server_priv
   db:
     image: mariadb:11.4
     command: --character-set-server=utf8mb4 --collation-server=utf8mb4_unicode_ci
     env_file:
-    - .env
+      - .env
     environment:
-    - MARIADB_ROOT_PASSWORD
-    - MARIADB_DATABASE
-    - MARIADB_USER
-    - MARIADB_PASSWORD
+      - MARIADB_ROOT_PASSWORD
+      - MARIADB_DATABASE
+      - MARIADB_USER
+      - MARIADB_PASSWORD
     volumes:
-    - db-data:/var/lib/mysql
-    - ./db/tatou.sql:/docker-entrypoint-initdb.d/10-tatou.sql:ro
+      - db-data:/var/lib/mysql
+      - ./db/tatou.sql:/docker-entrypoint-initdb.d/10-tatou.sql:ro
     healthcheck:
       test:
-      - CMD-SHELL
-      - mariadb-admin ping -h 127.0.0.1 -u root --password=$$MARIADB_ROOT_PASSWORD
-        --silent
+        - CMD-SHELL
+        - mariadb-admin ping -h 127.0.0.1 -u root --password=$$MARIADB_ROOT_PASSWORD
+          --silent
       interval: 10s
       timeout: 5s
       retries: 5
@@ -56,12 +63,12 @@ services:
   phpmyadmin:
     image: phpmyadmin:5.2
     environment:
-    - PMA_HOST=db
-    - PMA_PORT=3306
-    - UPLOAD_LIMIT=64M
-    - MEMORY_LIMIT=256M
+      - PMA_HOST=db
+      - PMA_PORT=3306
+      - UPLOAD_LIMIT=64M
+      - MEMORY_LIMIT=256M
     ports:
-    - 8080:80
+      - 8080:80
     depends_on:
       db:
         condition: service_healthy
