@@ -275,4 +275,15 @@ resp1.*
 payload*.b64
 check_clients_keys.py
 test_rmap.ps1
-sample.pdf
+sample.pdf# --- local test artifacts ---
+/body*.json
+/msg*.json
+/msg*.asc
+/payload*.b64
+/resp*.*
+/test_rmap.ps1
+/check_clients_keys.py
+/sample.pdf
+
+# never commit private keys
+server/keys/*_priv.asc
