@@ -30,6 +30,7 @@ services:
       - ./server:/app/server
       - ./storage:/app/storage
       - ./server/keys:/app/server/keys:ro # 让容器能读到 keys
+      - ./etc/tatou/flag:/app/flag:ro # 让容器能读到 keys
       - ./sample.pdf:/app/sample.pdf:ro # ← 把你刚放的 sample.pdf 映射进去
       - ./storage:/app/storage # 水印输出目录（建议 .gitignore 忽略）
     depends_on:
