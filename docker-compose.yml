@@ -24,21 +24,20 @@ services:
 
     volumes:
       - user-files:/app/storage
+      - ./server:/app/server
+      - ./sample.pdf:/app/sample.pdf:ro # ← 把你刚放的 sample.pdf 映射进去
+      - ./etc/tatou/flag:/app/flag:ro # 让容器能读到 keys
+
       - ./server/keys/server_pub.asc:/app/server/keys/server_pub.asc:ro
       - ./server/keys/server_priv.asc:/app/server/keys/server_priv.asc:ro
       - ./server/keys/clients:/app/server/keys/clients:ro
-      - ./server:/app/server
-      - ./storage:/app/storage
-      - ./server/keys:/app/server/keys:ro # 让容器能读到 keys
-      - ./etc/tatou/flag:/app/flag:ro # 让容器能读到 keys
-      - ./sample.pdf:/app/sample.pdf:ro # ← 把你刚放的 sample.pdf 映射进去
-      - ./storage:/app/storage # 水印输出目录（建议 .gitignore 忽略）
+
     depends_on:
       db:
         condition: service_healthy
     restart: unless-stopped
-    secrets:
-      - server_priv
+    # secrets:
+    #   - server_priv
   db:
     image: mariadb:11.4
     command: --character-set-server=utf8mb4 --collation-server=utf8mb4_unicode_ci
@@ -77,8 +76,8 @@ services:
 volumes:
   db-data: null
   user-files: null
-secrets:
-  server_priv:
-    file: ./secrets/server_priv.asc
-  group16_priv:
-    file: ./secrets/Group_16_priv.asc
+# secrets:
+#   server_priv:
+#     file: ./secrets/server_priv.asc
+#   group16_priv:
+#     file: ./secrets/Group_16_priv.asc
