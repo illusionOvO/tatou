@@ -52,7 +52,7 @@ from .metadata_watermark import MetadataWatermark
 METHODS: Dict[str, WatermarkingMethod] = {
     AddAfterEOF.name: AddAfterEOF(),
     VisibleTextWatermark.name: VisibleTextWatermark(),
-    MetadataWatermark.name: MetadataWatermark(),
+    MetadataWatermark.name: MetadataWatermark()
 }
 """Registry of available watermarking methods.
 
