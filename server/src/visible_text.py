@@ -125,7 +125,7 @@ class VisibleTextWatermark(WatermarkingMethod):
                             fontsize=50,
                             rotate=0,
                             color=(0.5, 0.5, 0.5),
-                            opacity=0.5,
+                            # opacity=0.5,
                             overlay=True,
                         )
                     except Exception:

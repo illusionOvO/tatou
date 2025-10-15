@@ -61,6 +61,14 @@ exposed by each implementation's ``.name`` attribute. Values are
 *instances* of the corresponding class.
 """
 
+# ---- Backward-compatible aliases for student scripts (input only) ----
+# Official names exposed by the API: "trailer-hmac", "visible-text-redundant", "metadata-xmp"
+# Accepted legacy input names (mapped here): "toy-eof" -> "trailer-hmac", etc.
+ALIASES: Dict[str, str] = {
+    "toy-eof": "trailer-hmac",
+    "visible-text": "visible-text-redundant",
+    "metadata": "metadata-xmp",
+}
 
 def register_method(method: WatermarkingMethod) -> None:
     """Register (or replace) a watermarking method instance by name."""
@@ -77,12 +85,20 @@ def get_method(method: str | WatermarkingMethod) -> WatermarkingMethod:
     """
     if isinstance(method, WatermarkingMethod):
         return method
+    if not isinstance(method, str):
+        raise TypeError("method must be a WatermarkingMethod or a string name")
+    # normalize: trim + lowercase
+    m = method.strip().lower()
+    # map legacy input names to official names
+    m = ALIASES.get(m, m)
     try:
-        return METHODS[method]
-    except KeyError as exc:
+        return METHODS[m]
+    except KeyError:
+        # help caller discover the correct names
         raise KeyError(
             f"Unknown watermarking method: {method!r}. Known: {sorted(METHODS)}"
-        ) from exc
+            f"Use one of: {', '.join(sorted(METHODS.keys()))}"
+        ) from None
 
 
 # --------------------
@@ -104,8 +120,8 @@ def is_watermarking_applicable(
     method: str | WatermarkingMethod,
     pdf: PdfSource,
     position: str | None = None,
-) -> bytes:
-    """Apply a watermark using the specified method and return new PDF bytes."""
+) -> bool:
+    """Return whether the method is applicable for this PDF/position."""
     m = get_method(method)
     return m.is_watermark_applicable(pdf=pdf, position=position)
 

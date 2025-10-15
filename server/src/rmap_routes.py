@@ -31,9 +31,6 @@ from .visible_text import VisibleTextWatermark
 
 
 
-# Our composite "best" watermark (visible text + metadata + EOF trailer)
-from .visible_text import VisibleTextWatermark
-
 # ---------- helpers ----------
 def _expand(p: Optional[str]) -> Optional[str]:
     if p is None:
@@ -74,7 +71,6 @@ rmap = RMAP(im)
 #   value -> {"nonceServer": int, "ts": float}
 _SESSION_TTL = 300  # seconds
 _sessions: Dict[Tuple[str, int], Dict[str, float | int]] = {}
-
 
 
 
@@ -131,7 +127,7 @@ def rmap_initiate():
         nonce_client = msg1["nonceClient"]
 
         nonce_server, response1 = rmap.generate_response1(identity, nonce_client)
-        _sessions[identity] = {
+        _sessions[(identity, nonce_client)] = {
             "nonceClient": nonce_client,
             "nonceServer": nonce_server,
             "ts": time.time(),
@@ -225,7 +221,7 @@ def rmap_get_link():
                             "link": out_fp.name,
                             "intended_for": identity,
                             "secret": secret,
-                            "method": "visible+metadata+eof",  # 你报告里定义的“最佳”组合
+                            "method": wm.name,  # 你报告里定义的“最佳”组合
                             "position": "footer",
                             "path": str(out_fp)
                         }

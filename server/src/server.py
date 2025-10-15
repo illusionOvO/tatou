@@ -619,7 +619,7 @@ def create_app():
 
         # link token = sha1(watermarked_file_name)
         link_token = hashlib.sha1(candidate.encode("utf-8")).hexdigest()
-
+        method_official = WMUtils.get_method(method).name
         try:
             with get_engine().begin() as conn:
                 conn.execute(
@@ -632,7 +632,7 @@ def create_app():
                         "link": link_token,
                         "intended_for": intended_for,
                         "secret": secret,
-                        "method": method,
+                        "method": method_official,
                         "position": position or "",
                         "path": dest_path
                     },
@@ -651,7 +651,7 @@ def create_app():
             "documentid": doc_id,
             "link": link_token,
             "intended_for": intended_for,
-            "method": method,
+            "method": method_official,
             "position": position,
             "filename": candidate,
             "size": len(wm_bytes),

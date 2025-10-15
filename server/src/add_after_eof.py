@@ -30,8 +30,8 @@ class AddAfterEOF:
         if isinstance(pdf_bytes, str):
             pdf_bytes = pdf_bytes.encode("utf-8")
         payload_b64 = self._build_payload(secret, key).encode("ascii")
-        marker_start = b"\\n%%CUSTOM-WM-START\\n"
-        marker_end = b"\\n%%CUSTOM-WM-END\\n"
+        marker_start = b"\n%%CUSTOM-WM-START\n"
+        marker_end = b"\n%%CUSTOM-WM-END\n"
         return pdf_bytes + marker_start + payload_b64 + marker_end
 
     def read_secret(self, pdf_bytes: bytes | str, key: str) -> str:
@@ -40,8 +40,8 @@ class AddAfterEOF:
         idx = pdf_bytes.rfind(b"%%CUSTOM-WM-START")
         if idx < 0:
             raise ValueError("Trailer watermark not found")
-        start = pdf_bytes.find(b"\\n", idx) + 1
-        end = pdf_bytes.find(b"\\n%%CUSTOM-WM-END", start)
+        start = pdf_bytes.find(b"\n", idx) + 1
+        end = pdf_bytes.find(b"\n%%CUSTOM-WM-END", start)
         if end < 0:
             raise ValueError("Trailer end marker missing")
         payload_b64 = pdf_bytes[start:end].strip()
