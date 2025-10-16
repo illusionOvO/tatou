@@ -27,6 +27,8 @@ services:
       - ./server:/app/server
       - ./sample.pdf:/app/sample.pdf:ro # ← 把你刚放的 sample.pdf 映射进去
       - ./etc/tatou/flag:/app/flag:ro # 让容器能读到 keys
+      - ./server/keys:/app/server/keys:ro
+      - ./storage:/app/storage
 
       - ./server/keys/server_pub.asc:/app/server/keys/server_pub.asc:ro
       - ./server/keys/server_priv.asc:/app/server/keys/server_priv.asc:ro
