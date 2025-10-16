@@ -33,9 +33,9 @@ def create_app():
     app.config["STORAGE_DIR"] = Path(os.environ.get("STORAGE_DIR", "./storage")).resolve()
     app.config["TOKEN_TTL_SECONDS"] = int(os.environ.get("TOKEN_TTL_SECONDS", "86400"))
 
-    app.config["RMAP_KEYS_DIR"]    = os.getenv("RMAP_KEYS_DIR", "/app/server/keys/clients")
-    app.config["RMAP_SERVER_PUB"]  = os.getenv("RMAP_SERVER_PUB", "/app/server/keys/server_pub.asc")
-    app.config["RMAP_SERVER_PRIV"] = os.getenv("RMAP_SERVER_PRIV", "/app/server/keys/server_priv.asc")
+    app.config["RMAP_KEYS_DIR"]    = os.getenv("RMAP_KEYS_DIR", "server/keys/clients")
+    app.config["RMAP_SERVER_PUB"]  = os.getenv("RMAP_SERVER_PUB", "server/keys/server_pub.asc")
+    app.config["RMAP_SERVER_PRIV"] = os.getenv("RMAP_SERVER_PRIV", "server/keys/server_priv.asc")
     app.register_blueprint(bp)
     
     app.config["DB_USER"] = os.environ.get("DB_USER", "tatou")
