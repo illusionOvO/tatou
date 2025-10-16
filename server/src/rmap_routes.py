@@ -48,15 +48,15 @@ def _cfg(key: str, default=None):
 RMAP_KEYS_DIR    = _expand(os.getenv("RMAP_KEYS_DIR", "/app/server/keys/clients"))
 RMAP_SERVER_PRIV = _expand(os.getenv("RMAP_SERVER_PRIV", "/app/server/keys/server_priv.asc"))
 RMAP_SERVER_PUB  = _expand(os.getenv("RMAP_SERVER_PUB",  "/app/server/keys/server_pub.asc"))
-RMAP_INPUT_PDF   = _expand(os.getenv("RMAP_INPUT_PDF"))
+RMAP_INPUT_PDF   = _expand(os.getenv("RMAP_INPUT_PDF", "/app/Group_16.pdf"))
 WATERMARK_HMAC_KEY = os.getenv("WATERMARK_HMAC_KEY", "dev-key-change-me")
 
 if not (RMAP_KEYS_DIR and os.path.isdir(RMAP_KEYS_DIR)):
     raise RuntimeError(f"RMAP_KEYS_DIR not found or not a directory: {RMAP_KEYS_DIR}")
 _require_file(RMAP_SERVER_PRIV, "RMAP_SERVER_PRIV")
 _require_file(RMAP_SERVER_PUB,  "RMAP_SERVER_PUB")
-if not RMAP_INPUT_PDF:
-    raise RuntimeError("RMAP_INPUT_PDF is not set")
+# if not RMAP_INPUT_PDF:
+#     raise RuntimeError("RMAP_INPUT_PDF is not set")
 
 # ---------- RMAP wiring ----------
 im = IdentityManager(
@@ -181,12 +181,23 @@ def rmap_get_link():
             f"{int(nonce_client)}{int(nonce_server)}".encode("utf-8")
         ).hexdigest()
 
+        # # 6) 读取输入 PDF（由环境变量 RMAP_INPUT_PDF 指定）
+        # src_fp = Path(RMAP_INPUT_PDF).resolve()
+        # if not src_fp.is_file():
+        #     current_app.logger.error("RMAP_INPUT_PDF not found: %s", src_fp)
+        #     return jsonify({"error": "input pdf not found"}), 500
+        # pdf_bytes = src_fp.read_bytes()
+
         # 6) 读取输入 PDF（由环境变量 RMAP_INPUT_PDF 指定）
-        src_fp = Path(RMAP_INPUT_PDF).resolve()
+        if not RMAP_INPUT_PDF:
+            current_app.logger.error("RMAP_INPUT_PDF is not set")
+            return jsonify({"error": "RMAP_INPUT_PDF is not set"}), 500
+        src_fp = Path(RMAP_INPUT_PDF).expanduser().resolve()
         if not src_fp.is_file():
             current_app.logger.error("RMAP_INPUT_PDF not found: %s", src_fp)
-            return jsonify({"error": "input pdf not found"}), 500
+            return jsonify({"error": f"input pdf not found: {src_fp}"}), 500
         pdf_bytes = src_fp.read_bytes()
+
 
         # 7) 生成水印 PDF（用你现有的 VisibleTextWatermark 实现）
         wm = VisibleTextWatermark()
