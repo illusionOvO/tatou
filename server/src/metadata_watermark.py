@@ -151,6 +151,11 @@ class MetadataWatermark:
         # 只有在至少一种库可用时才返回 True（两者都无就别让后续 500）
         return _HAS_PIKEPDF or _HAS_FITZ
 
-
+    def get_usage(self) -> str:
+        return (
+            "Append a signed HMAC blob after the PDF %%EOF marker. "
+            "Params: secret (hex/base64), key (hex/base64). "
+            "Pros: robust to viewers; Cons: may be stripped by re-save."
+        )
 
 __all__ = ["MetadataWatermark"]

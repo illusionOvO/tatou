@@ -74,5 +74,12 @@ class AddAfterEOF:
             return False
         return True
 
+    def get_usage(self) -> str:
+        return (
+            "Append a signed HMAC blob after the PDF %%EOF marker. "
+            "Params: secret (hex/base64), key (hex/base64). "
+            "Pros: robust to viewers; Cons: may be stripped by re-save."
+        )
+
 
 __all__ = ["AddAfterEOF"]
