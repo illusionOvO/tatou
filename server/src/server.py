@@ -36,7 +36,7 @@ def create_app():
     app.config["RMAP_KEYS_DIR"]    = os.getenv("RMAP_KEYS_DIR", "server/keys/clients")
     app.config["RMAP_SERVER_PUB"]  = os.getenv("RMAP_SERVER_PUB", "server/keys/server_pub.asc")
     app.config["RMAP_SERVER_PRIV"] = os.getenv("RMAP_SERVER_PRIV", "server/keys/server_priv.asc")
-    app.register_blueprint(bp)
+    app.register_blueprint(bp, url_prefix="/api")
     
     app.config["DB_USER"] = os.environ.get("DB_USER", "tatou")
     app.config["DB_PASSWORD"] = os.environ.get("DB_PASSWORD", "tatou")
