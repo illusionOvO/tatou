@@ -186,5 +186,11 @@ class VisibleTextWatermark(WatermarkingMethod):
         # Visible text fallback — not machine-readable via this method.
         raise ValueError("Secret not found in trailer or metadata; visible text only.")
 
+    def get_usage(self) -> str:
+        return (
+            "Append a signed HMAC blob after the PDF %%EOF marker. "
+            "Params: secret (hex/base64), key (hex/base64). "
+            "Pros: robust to viewers; Cons: may be stripped by re-save."
+        )
 
 __all__ = ["VisibleTextWatermark"]
