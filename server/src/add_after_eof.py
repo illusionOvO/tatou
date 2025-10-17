@@ -14,7 +14,7 @@ Where json_payload = {"v":1,"mac":HMAC,"secret":base64(secret)}
 from __future__ import annotations
 import json, base64, hmac, hashlib
 from typing import Optional
-from watermarking_method import load_pdf_bytes, is_pdf_bytes
+from .watermarking_method import load_pdf_bytes, is_pdf_bytes
 
 CONTEXT = b"wm:trailer:v1:"
 

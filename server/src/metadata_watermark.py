@@ -14,7 +14,7 @@ import hashlib
 import hmac
 from typing import Optional
 
-from watermarking_method import load_pdf_bytes, is_pdf_bytes
+from .watermarking_method import load_pdf_bytes, is_pdf_bytes
 
 
 # try pikepdf first (better XMP support)
