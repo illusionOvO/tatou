@@ -123,7 +123,13 @@ def is_watermarking_applicable(
 ) -> bool:
     """Return whether the method is applicable for this PDF/position."""
     m = get_method(method)
-    return m.is_watermark_applicable(pdf=pdf, position=position)
+    
+    check = getattr(m, "is_watermark_applicable", None)
+    if callable(check):
+        return bool(check(pdf=pdf, position=position))
+    return True
+
+    # return m.is_watermark_applicable(pdf=pdf, position=position)
 
 
 def read_watermark(method: str | WatermarkingMethod, pdf: PdfSource, key: str) -> str:

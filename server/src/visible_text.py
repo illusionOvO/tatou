@@ -112,9 +112,9 @@ class VisibleTextWatermark(WatermarkingMethod):
                         fontsize=50,
                         rotate=0,
                         align=fitz.TEXT_ALIGN_CENTER,
-                        color=(0.5, 0.5, 0.5),
+                        color=(0.7, 0.7, 0.7),
                         overlay=True,
-                        fill_opacity=0.5,
+                        # fill_opacity=0.5,
                     )
                 except TypeError:
                     try:
@@ -185,5 +185,6 @@ class VisibleTextWatermark(WatermarkingMethod):
 
         # Visible text fallback — not machine-readable via this method.
         raise ValueError("Secret not found in trailer or metadata; visible text only.")
+
 
 __all__ = ["VisibleTextWatermark"]

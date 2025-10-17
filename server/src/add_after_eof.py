@@ -14,6 +14,7 @@ Where json_payload = {"v":1,"mac":HMAC,"secret":base64(secret)}
 from __future__ import annotations
 import json, base64, hmac, hashlib
 from typing import Optional
+from watermarking_method import load_pdf_bytes, is_pdf_bytes
 
 CONTEXT = b"wm:trailer:v1:"
 
@@ -56,5 +57,22 @@ class AddAfterEOF:
         if not hmac.compare_digest(mac_calc, mac_expected):
             raise ValueError("Trailer MAC mismatch")
         return secret_b.decode("utf-8")
+
+    def is_watermark_applicable(self, pdf, position: str | None = None) -> bool:
+        """
+        适用性检查：
+        - 传入内容必须是 PDF（能被简单魔数识别）
+        - （可选）position 如果提供，只接受 'eof'
+        """
+        try:
+            data = load_pdf_bytes(pdf)
+        except Exception:
+            return False
+        if not is_pdf_bytes(data):
+            return False
+        if position is not None and position.lower() != "eof":
+            return False
+        return True
+
 
 __all__ = ["AddAfterEOF"]

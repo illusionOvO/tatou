@@ -5,5 +5,5 @@ sqlalchemy
 pymysql
 dill
 gunicorn
-PyMuPDF==1.24.9
+PyMuPDF==1.22.5
 rmap @ git+https://github.com/nharrand/RMAP-Server.git@v1.0.0
