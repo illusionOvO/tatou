@@ -1,4 +1,4 @@
-from server import app
+from server.src import app
 
 def test_healthz_route():
     client = app.test_client()

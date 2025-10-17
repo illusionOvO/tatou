@@ -1,0 +1,7 @@
+[mutmut]
+paths_to_mutate = ['server/']
+tests_dir = "tests"
+runner = "pytest -q"
+timeout = 60
+backup = true
+excluded_paths = ['tatou/migrations/', 'tatou/third_party/']
