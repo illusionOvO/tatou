@@ -226,6 +226,7 @@ secrets.yaml
 tatou/flag
 flag
 /app/flag
+tatou/secure_flag/*
 
 # Docker 数据卷/输出（你已有 db-data/；这里再保底一层）
 db-data/
