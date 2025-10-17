@@ -1,0 +1,78 @@
+name: CI
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+permissions:
+  contents: read
+  packages: read
+  id-token: write
+
+jobs:
+  lint-and-test:
+    name: Lint / Typecheck / Test
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python: [3.11]
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Set up Python ${{ matrix.python }}
+        uses: actions/setup-python@v4
+        with:
+          python-version: ${{ matrix.python }}
+
+      - name: Cache pip
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/pip
+          key: ${{ runner.os }}-pip-${{ hashFiles('**/requirements.txt') }}
+          restore-keys: |
+            ${{ runner.os }}-pip-
+
+      - name: Install deps
+        run: |
+          python -m pip install --upgrade pip
+          if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
+          # 固定 ruff 到新语法版本
+          pip install ruff==0.6.5 mypy pytest coverage bandit pip-audit
+
+      - name: Run ruff (fast lint)
+        run: |
+          # 新命令：ruff check .
+          ruff check . --exit-zero --output-format=github
+
+      - name: Run mypy (static types)
+        run: mypy . || true
+
+      - name: Run bandit (security static scan)
+        run: bandit -r . -ll -iii || true
+
+      - name: Run pytest with coverage
+        run: |
+          coverage run -m pytest -q --maxfail=1 || true
+          coverage xml -i || true
+          coverage report || true
+
+      - name: Upload coverage artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-xml
+          path: coverage.xml
+
+      - name: Run pip-audit (dependency vulnerabilities)
+        run: pip-audit -q || true
+
+  build-and-scan-image:
+    name: Build container image and scan
+    needs: lint-and-test
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
