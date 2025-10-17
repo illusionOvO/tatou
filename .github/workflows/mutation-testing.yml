@@ -102,16 +102,19 @@ jobs:
           echo "runner=$TEST_RUNNER" >> $GITHUB_OUTPUT
 
       - name: Baseline tests (pytest)
+        shell: bash
         run: |
-          set -e
-          pytest -q
+          export PYTHONPATH=.
+          pytest -vv -s
 
       - name: Run mutation tests (mutmut via script)
+        shell: bash
         run: |
+          export PYTHONPATH=.
           python mutation_runner.py \
-            --paths "${{ steps.params.outputs.paths }}" \
+            --paths "server/src/"  \
             --tests "server/test" \
-            --runner "${{ steps.params.outputs.runner }}" \
+            --runner "PYTHONPATH=. pytest -q" \
             --timeout $([ "${{ steps.params.outputs.full }}" == "true" ] && echo 60 || echo 30)
 
       - name: Upload mutation report
