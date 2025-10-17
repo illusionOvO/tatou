@@ -14,9 +14,12 @@ import hashlib
 import hmac
 from typing import Optional
 
+from watermarking_method import load_pdf_bytes, is_pdf_bytes
+
+
 # try pikepdf first (better XMP support)
 try:
-    import pikepdf
+    import pikepdf  # type: ignore
     _HAS_PIKEPDF = True
 except Exception:
     _HAS_PIKEPDF = False
@@ -44,7 +47,7 @@ def _build_payload(secret: str, key: str) -> str:
 class MetadataWatermark:
     name = "metadata-xmp"
 
-    def add_watermark(self, pdf_bytes: bytes | str, secret: str, key: str, position: Optional[str]=None) -> bytes:
+    def add_watermark(self, pdf_bytes: bytes | str, secret: str, key: str, position: Optional[str]=None) -> bytes:  # noqa: ARG002
         """Embed payload into XMP metadata. Returns new PDF bytes."""
         payload = _build_payload(secret, key)
         # prefer pikepdf for robust XMP handling
@@ -132,5 +135,22 @@ class MetadataWatermark:
             return secret_b.decode("utf-8")
         except Exception as e:
             raise
+
+    def is_watermark_applicable(self, pdf, position: str | None = None) -> bool:   # noqa: ARG002
+        """
+        对当前 PDF 是否可用该方法：
+        - PDF 必须看起来真的是 PDF
+        - 环境里至少有 pikepdf 或 pymupdf 其一
+        """
+        try:
+            data = load_pdf_bytes(pdf)
+        except Exception:
+            return False
+        if not is_pdf_bytes(data):
+            return False
+        # 只有在至少一种库可用时才返回 True（两者都无就别让后续 500）
+        return _HAS_PIKEPDF or _HAS_FITZ
+
+
 
 __all__ = ["MetadataWatermark"]
