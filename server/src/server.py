@@ -165,7 +165,65 @@ def create_app():
         token = _serializer().dumps({"uid": int(row.id), "login": row.login, "email": row.email})
         return jsonify({"token": token, "token_type": "bearer", "expires_in": app.config["TOKEN_TTL_SECONDS"]}), 200
 
-    # POST /api/upload-document  (multipart/form-data)
+    # # POST /api/upload-document  (multipart/form-data)
+    # @app.post("/api/upload-document")
+    # @require_auth
+    # def upload_document():
+    #     if "file" not in request.files:
+    #         return jsonify({"error": "file is required (multipart/form-data)"}), 400
+    #     file = request.files["file"]
+    #     if not file or file.filename == "":
+    #         return jsonify({"error": "empty filename"}), 400
+
+    #     fname = file.filename
+
+    #     user_dir = app.config["STORAGE_DIR"] / "files" / g.user["login"]
+    #     user_dir.mkdir(parents=True, exist_ok=True)
+
+    #     ts = dt.datetime.utcnow().strftime("%Y%m%dT%H%M%S%fZ")
+    #     final_name = request.form.get("name") or fname
+    #     stored_name = f"{ts}__{fname}"
+    #     stored_path = user_dir / stored_name
+    #     file.save(stored_path)
+
+    #     sha_hex = _sha256_file(stored_path)
+    #     size = stored_path.stat().st_size
+
+    #     try:
+    #         with get_engine().begin() as conn:
+    #             conn.execute(
+    #                 text("""
+    #                     INSERT INTO Documents (name, path, ownerid, sha256, size)
+    #                     VALUES (:name, :path, :ownerid, UNHEX(:sha256hex), :size)
+    #                 """),
+    #                 {
+    #                     "name": final_name,
+    #                     "path": str(stored_path),
+    #                     "ownerid": int(g.user["id"]),
+    #                     "sha256hex": sha_hex,
+    #                     "size": int(size),
+    #                 },
+    #             )
+    #             did = int(conn.execute(text("SELECT LAST_INSERT_ID()")).scalar())
+    #             row = conn.execute(
+    #                 text("""
+    #                     SELECT id, name, creation, HEX(sha256) AS sha256_hex, size
+    #                     FROM Documents
+    #                     WHERE id = :id
+    #                 """),
+    #                 {"id": did},
+    #             ).one()
+    #     except Exception as e:
+    #         return jsonify({"error": f"database error: {str(e)}"}), 503
+
+    #     return jsonify({
+    #         "id": int(row.id),
+    #         "name": row.name,
+    #         "creation": row.creation.isoformat() if hasattr(row.creation, "isoformat") else str(row.creation),
+    #         "sha256": row.sha256_hex,
+    #         "size": int(row.size),
+    #     }), 201
+      # POST /api/upload-document  (multipart/form-data)
     @app.post("/api/upload-document")
     @require_auth
     def upload_document():
@@ -174,21 +232,32 @@ def create_app():
         file = request.files["file"]
         if not file or file.filename == "":
             return jsonify({"error": "empty filename"}), 400
-
-        fname = file.filename
-
+    
+        # 检查文件类型，只允许PDF
+        fname = secure_filename(file.filename)
+        if not fname.lower().endswith('.pdf'):
+            return jsonify({"error": "only PDF files are allowed"}), 400
+    
+        # 进一步检查MIME类型
+        if file.mimetype != 'application/pdf':
+            # 读取文件头进行验证
+            file_header = file.stream.read(4)
+            file.stream.seek(0)  # 重置文件指针
+            if file_header != b'%PDF':
+                return jsonify({"error": "file is not a valid PDF"}), 400
+    
         user_dir = app.config["STORAGE_DIR"] / "files" / g.user["login"]
         user_dir.mkdir(parents=True, exist_ok=True)
-
+    
         ts = dt.datetime.utcnow().strftime("%Y%m%dT%H%M%S%fZ")
         final_name = request.form.get("name") or fname
         stored_name = f"{ts}__{fname}"
         stored_path = user_dir / stored_name
         file.save(stored_path)
-
+    
         sha_hex = _sha256_file(stored_path)
         size = stored_path.stat().st_size
-
+    
         try:
             with get_engine().begin() as conn:
                 conn.execute(
@@ -215,7 +284,7 @@ def create_app():
                 ).one()
         except Exception as e:
             return jsonify({"error": f"database error: {str(e)}"}), 503
-
+    
         return jsonify({
             "id": int(row.id),
             "name": row.name,
