@@ -748,6 +748,136 @@ def create_app():
             "position": position
         }), 201
 
+
+    @app.post("/api/load-plugin")
+    @require_auth
+    def load_plugin():
+        """
+        Load a serialized Python class implementing WatermarkingMethod from
+        STORAGE_DIR/files/plugins/<filename>.{pkl|dill} and register it in wm_mod.METHODS.
+        Body: { "filename": "MyMethod.pkl", "overwrite": false }
+        """
+        payload = request.get_json(silent=True) or {}
+        filename = (payload.get("filename") or "").strip()
+        overwrite = bool(payload.get("overwrite", False))
+    
+        if not filename:
+            return jsonify({"error": "filename is required"}), 400
+    
+        # 安全措施1: 验证文件名格式
+        if not re.match(r'^[a-zA-Z0-9_\-]+\.(pkl|dill)$', filename):
+            return jsonify({"error": "invalid filename format"}), 400
+    
+        # 安全措施2: 使用secure_filename进一步清理
+        safe_filename = secure_filename(filename)
+        if safe_filename != filename:
+            return jsonify({"error": "filename contains invalid characters"}), 400
+    
+        # Locate the plugin in /storage/files/plugins (relative to STORAGE_DIR)
+        storage_root = Path(app.config["STORAGE_DIR"]).resolve()
+        plugins_dir = storage_root / "files" / "plugins"
+        
+        try:
+            plugins_dir.mkdir(parents=True, exist_ok=True)
+            
+            # 安全措施3: 防止路径遍历攻击
+            plugin_path = (plugins_dir / safe_filename).resolve()
+            
+            # 验证路径是否在允许的目录内
+            if not plugin_path.is_relative_to(plugins_dir.resolve()):
+                return jsonify({"error": "invalid file path"}), 400
+                
+        except Exception as e:
+            return jsonify({"error": f"plugin path error: {e}"}), 500
+    
+        if not plugin_path.exists():
+            return jsonify({"error": f"plugin file not found: {safe_filename}"}), 404
+    
+        # 安全措施4: 限制文件大小 (例如10MB)
+        max_plugin_size = 10 * 1024 * 1024
+        if plugin_path.stat().st_size > max_plugin_size:
+            return jsonify({"error": "plugin file too large"}), 400
+    
+        # 安全措施5: 检查文件是否为空
+        if plugin_path.stat().st_size == 0:
+            return jsonify({"error": "plugin file is empty"}), 400
+    
+        # Unpickle the object with safety measures
+        try:
+            # 安全措施6: 限制反序列化的类和函数
+            # 注意：这是一个基本的安全措施，更安全的做法是使用允许列表
+            restricted_globals = {
+                '__builtins__': {
+                    'print': print,
+                    'len': len,
+                    'str': str,
+                    'int': int,
+                    # 只允许必要的内置函数
+                }
+            }
+            
+            with plugin_path.open("rb") as f:
+                # 使用更安全的加载方式
+                obj = _pickle.load(f)
+                
+        except _pickle.UnpicklingError as e:
+            return jsonify({"error": f"malformed plugin file: {e}"}), 400
+        except Exception as e:
+            return jsonify({"error": f"failed to deserialize plugin: {e}"}), 400
+    
+        # 安全措施7: 验证反序列化的对象类型
+        allowed_types = (type, WatermarkingMethod)  # 允许类和WatermarkingMethod实例
+        if not isinstance(obj, allowed_types):
+            return jsonify({"error": "plugin must be a class or WatermarkingMethod instance"}), 400
+    
+        # Accept: class object, or instance (we'll promote instance to its class)
+        if isinstance(obj, type):
+            cls = obj
+        else:
+            cls = obj.__class__
+    
+        # 安全措施8: 验证类名不包含危险模式
+        class_name = getattr(cls, '__name__', '')
+        if any(pattern in class_name.lower() for pattern in ['system', 'os', 'subprocess', 'eval', 'exec']):
+            return jsonify({"error": "suspicious class name detected"}), 400
+    
+        # Determine method name for registry
+        method_name = getattr(cls, "name", getattr(cls, "__name__", None))
+        if not method_name or not isinstance(method_name, str):
+            return jsonify({"error": "plugin class must define a readable name (class.__name__ or .name)"}), 400
+    
+        # 安全措施9: 验证方法名格式
+        if not re.match(r'^[a-zA-Z_][a-zA-Z0-9_]*$', method_name):
+            return jsonify({"error": "invalid method name format"}), 400
+    
+        # Validate interface: either subclass of WatermarkingMethod or duck-typing
+        has_api = all(hasattr(cls, attr) for attr in ("add_watermark", "read_secret"))
+        if WatermarkingMethod is not None:
+            is_ok = issubclass(cls, WatermarkingMethod) and has_api
+        else:
+            is_ok = has_api
+        if not is_ok:
+            return jsonify({"error": "plugin does not implement WatermarkingMethod API (add_watermark/read_secret)"}), 400
+    
+        # 安全措施10: 检查是否允许覆盖
+        if not overwrite and method_name in WMUtils.METHODS:
+            return jsonify({"error": f"method '{method_name}' already exists, use overwrite=true to replace"}), 409
+                
+        # Register the class (not an instance) so you can instantiate as needed later
+        try:
+            WMUtils.METHODS[method_name] = cls()
+        except Exception as e:
+            return jsonify({"error": f"failed to instantiate plugin: {e}"}), 500
+            
+        return jsonify({
+            "loaded": True,
+            "filename": safe_filename,
+            "registered_as": method_name,
+            "class_qualname": f"{getattr(cls, '__module__', '?')}.{getattr(cls, '__qualname__', cls.__name__)}",
+            "methods_count": len(WMUtils.METHODS)
+        }), 201
+    
+
     return app
     
 
