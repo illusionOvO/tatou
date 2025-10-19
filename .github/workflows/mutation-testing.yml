@@ -1,0 +1,124 @@
+name: Mutation Testing
+
+on:
+  pull_request:
+    branches: [ main, master ]
+  push:
+    branches: [ main, master ]
+  schedule:
+    # 每天 03:00 UTC 跑一次全量
+    - cron: "0 3 * * *"
+  workflow_dispatch:
+    inputs:
+      mutate_paths:
+        description: "Comma-separated paths to mutate (override default)"
+        required: false
+      test_runner:
+        description: "Custom pytest runner for mutmut"
+        required: false
+      full:
+        description: "Run FULL mutation (true/false)"
+        required: false
+        default: "false"
+
+concurrency:
+  group: mutation-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  # 你可以在这里改默认的变异范围与测试命令
+  DEFAULT_MUTATE_PATHS: "tatou/"
+  DEFAULT_TEST_RUNNER_QUICK: "pytest -q -k 'not slow'"
+  DEFAULT_TEST_RUNNER_FULL: "pytest -q"
+  PYTHONDONTWRITEBYTECODE: "1"
+  PYTHONHASHSEED: "0"
+
+jobs:
+  # PR 和 push 默认跑“轻量版”，更快；schedule/nightly 跑“全量版”
+  mutation:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ["3.11"]  # 如需多版本，添加 "3.10", "3.12"
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+          cache: "pip"
+
+      - name: Install deps
+        shell: bash
+        run: |
+          if [ -f requirements-dev.txt ]; then
+            pip install -r requirements-dev.txt
+          elif [ -f requirements.txt ]; then
+            pip install -r requirements.txt
+          fi
+          # 兜底确保工具可用
+          pip install -q pytest mutmut
+
+      - name: Show Python & tool versions
+        run: |
+          python --version
+          pytest --version
+          mutmut --help > /dev/null
+
+      - name: Decide run mode and parameters
+        id: params
+        shell: bash
+        run: |
+          # 判断是否全量：手动触发且 full=true，或者 schedule 触发
+          if [[ "${{ github.event_name }}" == "schedule" ]]; then
+            FULL="true"
+          elif [[ "${{ github.event_name }}" == "workflow_dispatch" && "${{ github.event.inputs.full }}" == "true" ]]; then
+            FULL="true"
+          else
+            FULL="false"
+          fi
+
+          # 解析 paths 与 runner
+          MUTATE_PATHS="${{ github.event.inputs.mutate_paths }}"
+          TEST_RUNNER="${{ github.event.inputs.test_runner }}"
+
+          if [[ -z "$MUTATE_PATHS" ]]; then
+            MUTATE_PATHS="${DEFAULT_MUTATE_PATHS}"
+          fi
+
+          if [[ -z "$TEST_RUNNER" ]]; then
+            if [[ "$FULL" == "true" ]]; then
+              TEST_RUNNER="${DEFAULT_TEST_RUNNER_FULL}"
+            else
+              TEST_RUNNER="${DEFAULT_TEST_RUNNER_QUICK}"
+            fi
+          fi
+
+          echo "full=$FULL" >> $GITHUB_OUTPUT
+          echo "paths=$MUTATE_PATHS" >> $GITHUB_OUTPUT
+          echo "runner=$TEST_RUNNER" >> $GITHUB_OUTPUT
+
+      - name: Baseline tests (pytest)
+        run: |
+          set -e
+          pytest -q
+
+      - name: Run mutation tests (mutmut via script)
+        run: |
+          python mutation_runner.py \
+            --paths "${{ steps.params.outputs.paths }}" \
+            --runner "${{ steps.params.outputs.runner }}" \
+            --timeout $([ "${{ steps.params.outputs.full }}" == "true" ] && echo 60 || echo 30)
+
+      - name: Upload mutation report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: mutmut-results-${{ matrix.python-version }}
+          path: |
+            reports/mutmut_results.txt
+            mutmut.toml
+          if-no-files-found: warn
