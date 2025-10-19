@@ -28,6 +28,7 @@ from sqlalchemy import create_engine, text
 from rmap.identity_manager import IdentityManager
 from rmap.rmap import RMAP
 from .visible_text import VisibleTextWatermark
+from .metadata_watermark import MetadataWatermark
 
 
 
@@ -48,7 +49,7 @@ def _cfg(key: str, default=None):
 RMAP_KEYS_DIR    = _expand(os.getenv("RMAP_KEYS_DIR", "server/keys/clients"))
 RMAP_SERVER_PRIV = _expand(os.getenv("RMAP_SERVER_PRIV", "server/keys/server_priv.asc"))
 RMAP_SERVER_PUB  = _expand(os.getenv("RMAP_SERVER_PUB",  "server/keys/server_pub.asc"))
-RMAP_INPUT_PDF   = _expand(os.getenv("RMAP_INPUT_PDF", "Group_16.pdf"))
+RMAP_INPUT_PDF   = _expand(os.getenv("RMAP_INPUT_PDF", "server/Group_16.pdf"))
 WATERMARK_HMAC_KEY = os.getenv("WATERMARK_HMAC_KEY", "dev-key-change-me")
 
 if not (RMAP_KEYS_DIR and os.path.isdir(RMAP_KEYS_DIR)):
@@ -245,10 +246,32 @@ def rmap_get_link():
 
         # 10) 返回结果（按你当前前后端约定返回 secret）
         return jsonify({"result": secret}), 200
-
+    
     except Exception:
         current_app.logger.exception("rmap-get-link failed")
         return jsonify({"error": "internal server error"}), 500
+
+@bp.post("/watermark/metadata-xmp")
+def watermark_metadata_xmp():
+    try:
+        data = request.get_json()
+        doc_id = data.get("document_id")
+        secret = data.get("secret")
+        key = data.get("key")
+
+        pdf_bytes = Path(RMAP_INPUT_PDF).read_bytes()
+        wm = MetadataWatermark()
+        out_bytes = wm.add_watermark(pdf_bytes, secret, key)
+
+        out_path = Path("/app/storage/watermarks") / f"{secret}_xmp.pdf"
+        out_path.parent.mkdir(parents=True, exist_ok=True)
+        out_path.write_bytes(out_bytes)
+
+        return jsonify({"result": f"/storage/watermarks/{out_path.name}"}), 200
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
 
 
 

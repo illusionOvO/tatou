@@ -14,7 +14,7 @@ import hashlib
 import hmac
 from typing import Optional
 
-from watermarking_method import load_pdf_bytes, is_pdf_bytes
+from .watermarking_method import load_pdf_bytes, is_pdf_bytes
 
 
 # try pikepdf first (better XMP support)
@@ -50,17 +50,21 @@ class MetadataWatermark:
     def add_watermark(self, pdf_bytes: bytes | str, secret: str, key: str, position: Optional[str]=None) -> bytes:  # noqa: ARG002
         """Embed payload into XMP metadata. Returns new PDF bytes."""
         payload = _build_payload(secret, key)
+
+        # ✅ 统一成字节
+        data = load_pdf_bytes(pdf_bytes)
+
         # prefer pikepdf for robust XMP handling
         if _HAS_PIKEPDF:
             try:
-                with pikepdf.Pdf.open(io.BytesIO(pdf_bytes)) as pdf:
+                with pikepdf.Pdf.open(io.BytesIO(data)) as pdf:
                     # Use Metadata object via pikepdf
                     try:
                         xmp = pdf.open_metadata()
                         # Put our compact payload into a dedicated property in xmp meta
                         # Use a custom property name
                         xmp["/xmp:WatermarkPayload"] = payload
-                        pdf.save(io.BytesIO())  # ensure metadata is set
+                        # pdf.save(io.BytesIO())  # ensure metadata is set
                     except Exception:
                         # fallback: set a raw Metadata stream
                         try:
@@ -75,10 +79,10 @@ class MetadataWatermark:
                 pass
 
         if _HAS_FITZ:
-            doc = fitz.open(stream=pdf_bytes, filetype="pdf")
+            doc = fitz.open(stream=data, filetype="pdf")
             m = doc.metadata
             # set a custom metadata field
-            m["watermark_payload"] = payload
+            m["keywords"] = payload
             doc.set_metadata(m)
             out = doc.tobytes()
             doc.close()
@@ -89,10 +93,14 @@ class MetadataWatermark:
 
     def read_secret(self, pdf_bytes: bytes | str, key: str) -> str:
         """Try to read and verify payload from XMP/metadata."""
+
+        data = load_pdf_bytes(pdf_bytes)  # ✅ 统一成字节
+
+
         # try pikepdf
         try:
             if _HAS_PIKEPDF:
-                with pikepdf.Pdf.open(io.BytesIO(pdf_bytes)) as pdf:
+                with pikepdf.Pdf.open(io.BytesIO(data)) as pdf:
                     try:
                         md = pdf.open_metadata()
                         payload = None
@@ -117,10 +125,10 @@ class MetadataWatermark:
                         raise
                 obj = json.loads(payload)
             elif _HAS_FITZ:
-                doc = fitz.open(stream=pdf_bytes, filetype="pdf")
+                doc = fitz.open(stream=data, filetype="pdf")
                 m = doc.metadata
                 doc.close()
-                payload = m.get("watermark_payload")
+                payload = m.get("keywords") or m.get("subject")
                 if not payload:
                     raise ValueError("No metadata payload found")
                 obj = json.loads(payload)
@@ -153,8 +161,8 @@ class MetadataWatermark:
 
     def get_usage(self) -> str:
         return (
-            "Append a signed HMAC blob after the PDF %%EOF marker. "
-            "Params: secret (hex/base64), key (hex/base64). "
+            "Embed a signed HMAC JSON payload into the PDF metadata (XMP or doc metadata). "
+            "Params: secret (utf-8), key (utf-8). "
             "Pros: robust to viewers; Cons: may be stripped by re-save."
         )
 

@@ -114,7 +114,12 @@ def apply_watermark(
 ) -> bytes:
     """Apply a watermark using the specified method and return new PDF bytes."""
     m = get_method(method)
-    return m.add_watermark(pdf=pdf, secret=secret, key=key, position=position)
+
+    # ✅ 修复: 将 pdf 转换为字节
+    pdf_bytes = load_pdf_bytes(pdf)
+
+    # return m.add_watermark(pdf_bytes=pdf_bytes, secret=secret, key=key, )
+    return m.add_watermark(pdf_bytes, secret, key, position)   # 位置参数 ✅
 
 def is_watermarking_applicable(
     method: str | WatermarkingMethod,
@@ -135,7 +140,11 @@ def is_watermarking_applicable(
 def read_watermark(method: str | WatermarkingMethod, pdf: PdfSource, key: str) -> str:
     """Recover a secret from ``pdf`` using the specified method."""
     m = get_method(method)
-    return m.read_secret(pdf=pdf, key=key)
+    
+    pdf_bytes = load_pdf_bytes(pdf)                     # 新增
+
+    # return m.read_secret(pdf_bytes=pdf_bytes, key=key)
+    return m.read_secret(pdf_bytes, key)            # 位置参数 ✅
 
 
 # --------------------
