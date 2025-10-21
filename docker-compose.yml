@@ -33,8 +33,7 @@ services:
       - ./server/keys/server_pub.asc:/app/server/keys/server_pub.asc:ro
       - ./server/keys/server_priv.asc:/app/server/keys/server_priv.asc:ro
       - ./server/keys/clients:/app/server/keys/clients:ro
-    	- /srv/tatou/flags/server_flag:/app/flag:ro
-
+      - ./srv/tatou/flags/server_flag:/app/flag:ro
 
     depends_on:
       db:
