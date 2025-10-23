@@ -60,8 +60,8 @@ _require_file(RMAP_SERVER_PUB,  "RMAP_SERVER_PUB")
 # ---------- RMAP wiring ----------
 im = IdentityManager(
     RMAP_KEYS_DIR,
+    RMAP_SERVER_PUB,
     RMAP_SERVER_PRIV,
-    RMAP_SERVER_PUB
 )
 rmap = RMAP(im)
 
