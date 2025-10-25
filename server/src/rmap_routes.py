@@ -16,12 +16,11 @@ methods into one robust technique is acceptable and documented in the report.
 
 from __future__ import annotations
 # 标准库
-import os, time, base64, hashlib
+import os 
 from pathlib import Path
-from typing import Dict, Tuple, Optional
+from typing import  Optional
 # 三方库
-import json
-from pgpy import PGPKey, PGPMessage
+
 from flask import Blueprint, request, jsonify, current_app
 from sqlalchemy import create_engine, text
 # 本地模块
@@ -30,20 +29,18 @@ from rmap.rmap import RMAP
 from .visible_text import VisibleTextWatermark
 from .metadata_watermark import MetadataWatermark
 
-
-
 # ---------- helpers ----------
 def _expand(p: Optional[str]) -> Optional[str]:
     if p is None:
         return None
     return os.path.expandvars(os.path.expanduser(p))
 
+
 def _require_file(path: str, label: str) -> None:
     if not os.path.isfile(path):
         raise FileNotFoundError(f"{label} not found at: {path}")
 
-def _cfg(key: str, default=None):
-    return (current_app.config.get(key) or os.getenv(key) or default)
+
 
 # ---------- env ----------
 RMAP_KEYS_DIR    = _expand(os.getenv("RMAP_KEYS_DIR", "server/keys/clients"))
@@ -59,33 +56,14 @@ _require_file(RMAP_SERVER_PUB,  "RMAP_SERVER_PUB")
 # if not RMAP_INPUT_PDF:
 #     raise RuntimeError("RMAP_INPUT_PDF is not set")
 
+
 # ---------- RMAP wiring ----------
 im = IdentityManager(
     RMAP_KEYS_DIR,
+    RMAP_SERVER_PUB,
     RMAP_SERVER_PRIV,
-    RMAP_SERVER_PUB
 )
 rmap = RMAP(im)
-
-# Sessions:
-#   key   -> (identity, nonceClient)
-#   value -> {"nonceServer": int, "ts": float}
-_SESSION_TTL = 300  # seconds
-_sessions: Dict[Tuple[str, int], Dict[str, float | int]] = {}
-
-
-
-# 尝试把 base64 解出来的密文字节 -> 解密 -> JSON对象。  失败则抛异常。
-def _coerce_to_json_from_enc(enc_bytes: bytes) -> dict:
-    armored = enc_bytes.decode("ascii", "strict")
-    priv, _ = PGPKey.from_file(RMAP_SERVER_PRIV)
-    msg = PGPMessage.from_blob(armored)
-    pt = priv.decrypt(msg).message
-    pt_text = pt.decode("utf-8") if isinstance(pt, (bytes, bytearray)) else pt
-    return json.loads(pt_text)
-
-
-
 
 bp = Blueprint("rmap", __name__)
 
@@ -104,102 +82,60 @@ def _get_engine():
         current_app.config["_ENGINE"] = eng
     return eng
 
-def _find_session_by_nonce_server(identity: str, nonce_server: int) -> Optional[Tuple[int, Dict[str, float | int]]]:
-    """Return (nonce_client, session) matching identity & nonce_server, else None."""
-    for (idn, ncli), sess in _sessions.items():
-        if idn == identity and sess.get("nonceServer") == nonce_server:
-            return ncli, sess
-    return None
 
-# ---------- endpoints ----------
+CLIENT_KEYS_DIR = Path(RMAP_KEYS_DIR)
+
+def _guess_identity(incoming: dict) -> str:
+    ident = (incoming.get("identity") or "").strip()
+    if ident and (CLIENT_KEYS_DIR / f"{ident}.asc").exists():
+        return ident
+    group_files = list(CLIENT_KEYS_DIR.glob("Group_*.asc"))
+    if len(group_files) == 1:
+        return group_files[0].stem
+    return "rmap"
+
+# rmap-initiate
+
 @bp.post("/rmap-initiate")
+@bp.post("/api/rmap-initiate")
 def rmap_initiate():
     try:
-        data = request.get_json(silent=True) or {}
-        payload_b64 = data.get("payload") or ""
-        if not payload_b64:
-            return jsonify({"error": "missing payload"}), 400
+        incoming = request.get_json(force=True) or {}
 
-        # 解码并解析 Message1
-        enc = base64.b64decode(payload_b64)
-        msg1 = rmap.handle_message1(enc)
+        current_app.config["LAST_RMAP_IDENTITY"] = _guess_identity(incoming)
 
-        # RMAP 2.0 返回 dict
-        if not isinstance(msg1, dict):
-            raise ValueError(f"Unexpected message1 type: {type(msg1)}")
-
-        identity = msg1.get("identity")
-        nonce_client = msg1.get("nonceClient")
-
-        if not identity or not nonce_client:
-            raise ValueError(f"Incomplete message1: {msg1}")
-
-        # 生成服务器 nonce 并回复
-        nonce_server, response1 = rmap.generate_response1(identity, nonce_client)
-
-        _sessions[(identity, nonce_client)] = {
-            "nonceClient": nonce_client,
-            "nonceServer": nonce_server,
-            "ts": time.time(),
-        }
-
-        return jsonify({
-            "payload": base64.b64encode(response1).decode()
-        }), 200
-
+        result = rmap.handle_message1(incoming)
+        if "error" in result:
+            return jsonify(result), 400
+        return jsonify(result), 200
+    
     except Exception as e:
         current_app.logger.exception("rmap-initiate failed")
-        return jsonify({"error": f"rmap-initiate failed: {e}"}), 400
+        return jsonify({"error": str(e)}), 400
+    
 
 
 
-
-
+# rmap-get-link
 
 @bp.post("/rmap-get-link")
+@bp.post("/api/rmap-get-link")
 def rmap_get_link():
     try:
-        data = request.get_json(silent=True) or {}
-        payload_b64 = data.get("payload") or ""
-        if not payload_b64:
-            return jsonify({"error": "missing payload"}), 400
 
-        # 解码并解析 Message2
-        enc = base64.b64decode(payload_b64)
-        msg2 = rmap.handle_message2(enc)
+        #rmap 2.0
+        incoming = request.get_json(force=True) or {}
 
-        # RMAP 2.0 返回 dict
-        if not isinstance(msg2, dict):
-            raise ValueError(f"Unexpected message2 type: {type(msg2)}")
+        ident = _guess_identity(incoming) or current_app.config.get("LAST_RMAP_IDENTITY", "rmap")
 
-        identity = msg2.get("identity")
-        nonce_server = msg2.get("nonceServer")
+        result = rmap.handle_message2(incoming)
+        if "error" in result:
+            return jsonify(result), 400
 
-        # 若 identity 缺失，从 _sessions 推断
-        if identity is None:
-            for (idn, _), sess in _sessions.items():
-                if sess.get("nonceServer") == nonce_server:
-                    identity = idn
-                    break
+        #get secret
+        secret = result["result"]
 
-        if identity is None or nonce_server is None:
-            return jsonify({"error": f"bad message2: {msg2}"}), 400
-
-        # 验证会话
-        found = _find_session_by_nonce_server(identity, nonce_server)
-        if not found:
-            return jsonify({"error": "Invalid session or nonce"}), 403
-        nonce_client, sess = found
-
-        if time.time() - sess["ts"] > _SESSION_TTL:
-            return jsonify({"error": "Session expired"}), 403
-
-        # 生成 secret
-        secret = hashlib.sha256(
-            f"{int(nonce_client)}{int(nonce_server)}".encode("utf-8")
-        ).hexdigest()
-
-        # 生成水印 PDF
+        # create PDF
         if not RMAP_INPUT_PDF:
             return jsonify({"error": "RMAP_INPUT_PDF not set"}), 500
 
@@ -208,42 +144,38 @@ def rmap_get_link():
             return jsonify({"error": f"input pdf not found: {src_fp}"}), 500
         pdf_bytes = src_fp.read_bytes()
 
-        wm = VisibleTextWatermark()
-        out_bytes = wm.add_watermark(pdf_bytes, secret, WATERMARK_HMAC_KEY)
+        # --- 水印流水线：先可见文字，再叠加 XMP Metadata ---
+        vt = VisibleTextWatermark()
+        out_bytes = vt.add_watermark(pdf_bytes, secret, WATERMARK_HMAC_KEY)
+
+        xmp = MetadataWatermark()
+        out_bytes = xmp.add_watermark(out_bytes, secret, WATERMARK_HMAC_KEY)      
 
         out_dir = Path(current_app.config.get("STORAGE_DIR", "/app/storage")) / "watermarks"
         out_dir.mkdir(parents=True, exist_ok=True)
         out_fp = out_dir / f"{secret}.pdf"
         out_fp.write_bytes(out_bytes)
 
+        try:
+            eng = _get_engine()
+            with eng.begin()as conn:
+                conn.execute(
+                    text("""
+                        INSERT INTO Versions (link, path, intended_for, method)
+                        VALUES (:link, :path, :intended_for, :method)
+                    """),
+                    {
+                        "link": secret,
+                        "path": str(out_fp),
+                        "intended_for": ident,
+                        "method": "visible+metadata",
+                    },
+                )
+        except Exception as db_e:
+            current_app.logger.warning(f"Versions insert failed: {db_e}")
+
         return jsonify({"result": secret}), 200
 
-    except Exception as e:
+    except Exception:
         current_app.logger.exception("rmap-get-link failed")
-        return jsonify({"error": f"rmap-get-link failed: {e}"}), 400
-
-
-@bp.post("/watermark/metadata-xmp")
-def watermark_metadata_xmp():
-    try:
-        data = request.get_json()
-        doc_id = data.get("document_id")
-        secret = data.get("secret")
-        key = data.get("key")
-
-        pdf_bytes = Path(RMAP_INPUT_PDF).read_bytes()
-        wm = MetadataWatermark()
-        out_bytes = wm.add_watermark(pdf_bytes, secret, key)
-
-        out_path = Path("/app/storage/watermarks") / f"{secret}_xmp.pdf"
-        out_path.parent.mkdir(parents=True, exist_ok=True)
-        out_path.write_bytes(out_bytes)
-
-        return jsonify({"result": f"/storage/watermarks/{out_path.name}"}), 200
-    except Exception as e:
-        return jsonify({"error": str(e)}), 500
-
-
-
-
-
+        return jsonify({"error": "rmap-get-link failed"}), 400
