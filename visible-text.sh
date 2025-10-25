@@ -37,14 +37,14 @@ jint() { sed -n "s/.*\"$2\"[[:space:]]*:[[:space:]]*\\([0-9]\\+\\).*/\\1/p" <<<"
 # ==============================
 # 1) 健康检查
 # ==============================
-say "健康检查 /healthz"
+say "health check /healthz"
 curl -sS -m 5 "$BASE/healthz" >/dev/null || die "后端不可用"
 ok "healthz ok"
 
 # ==============================
 # 2) 创建用户（存在也不影响）
 # ==============================
-say "创建用户 /api/create-user"
+say "Create-user /api/create-user"
 curl -sS -m 10 -X POST "$BASE/api/create-user" \
   -H "Content-Type: application/json" \
   -d "{\"login\":\"$LOGIN\",\"password\":\"$PASSWORD\",\"email\":\"$EMAIL\"}" >/dev/null || true
@@ -52,7 +52,7 @@ curl -sS -m 10 -X POST "$BASE/api/create-user" \
 # ==============================
 # 3) 登录换 token
 # ==============================
-say "登录 /api/login"
+say "Login /api/login"
 LOGIN_JSON=$(curl -sS -m 10 -X POST "$BASE/api/login" \
   -H "Content-Type: application/json" \
   -d "{\"email\":\"$EMAIL\",\"password\":\"$PASSWORD\"}")
@@ -64,7 +64,7 @@ ok "token=${TOKEN:0:16}..."
 # ==============================
 # 4) 上传 PDF
 # ==============================
-say "上传 PDF /api/upload-document"
+say "Upload PDF /api/upload-document"
 UP_JSON=$(curl -sS -m 30 -X POST "$BASE/api/upload-document" \
   -H "Authorization: Bearer $TOKEN" \
   -F "file=@${PDF};type=application/pdf" \
@@ -77,7 +77,7 @@ ok "doc_id=$DOC_ID"
 # ==============================
 # 5) 创建 visible-text 水印版本
 # ==============================
-say "创建水印 /api/create-watermark  method=${METHOD}"
+say "Create-watermark /api/create-watermark  method=${METHOD}"
 BODY=$(cat <<JSON
 {"id": $DOC_ID, "method": "$METHOD", "position": "$POSITION",
  "key": "$KEY", "secret": "$SECRET", "intended_for": "$INTENDED_FOR"}
@@ -104,7 +104,7 @@ ok "link=$LINK"
 # ==============================
 # 6) 下载并验证（容器内调用 VisibleTextWatermark.read_secret）
 # ==============================
-say "验证水印：下载版本 -> 容器内 read_secret(key='$KEY')"
+say "Verify watermark -> 容器内 read_secret(key='$KEY')"
 curl -sS -m 30 -H "Authorization: Bearer $TOKEN" \
   -o wm_vtext.pdf "$BASE/api/get-version/$LINK"
 
@@ -115,15 +115,15 @@ from server.src.visible_text import VisibleTextWatermark;
 print(VisibleTextWatermark().read_secret(open('/tmp/wm_vtext.pdf','rb').read(), key='K3'))
 "
 
-ok "验证完成"
+ok "Done"
 
 # ==============================
 # 7) （可选）列版本 & 删除文档
 # ==============================
-say "版本列表 /api/list-versions/$DOC_ID"
+say "List version /api/list-versions/$DOC_ID"
 curl -sS -m 10 -H "Authorization: Bearer $TOKEN" "$BASE/api/list-versions/$DOC_ID" | head -c 600; echo
 
 # 如不想删除，请注释掉下面两行
-say "删除文档 /api/delete-document/$DOC_ID"
+say "Delete document /api/delete-document/$DOC_ID"
 curl -sS -m 10 -X DELETE -H "Authorization: Bearer $TOKEN" "$BASE/api/delete-document/$DOC_ID" || true
-ok "全部完成"
+ok "All done"

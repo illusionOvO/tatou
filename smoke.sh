@@ -39,13 +39,13 @@ json_get_number () {
 # ==============================
 # 1) 健康检查
 # ==============================
-say "1) 健康检查：/healthz"
+say "1) Health check：/healthz"
 curl -s -i "$BASE/healthz" | sed -n '1,6p' || true
 
 # ==============================
 # 2) 创建用户（已存在报 4xx 也不影响）
 # ==============================
-say "2) 创建用户：/api/create-user"
+say "2) Create user：/api/create-user"
 CREATE_JSON=$(curl -s -X POST "$BASE/api/create-user" \
   -H "Content-Type: application/json" \
   -d "{\"login\":\"$LOGIN\",\"password\":\"$PASSWORD\",\"email\":\"$EMAIL\"}" || true)
@@ -54,7 +54,7 @@ echo "RESP: $CREATE_JSON"
 # ==============================
 # 3) 登录，获取 token
 # ==============================
-say "3) 登录：/api/login -> token"
+say "3) Login：/api/login -> token"
 LOGIN_JSON=$(curl -s -X POST "$BASE/api/login" \
   -H "Content-Type: application/json" \
   -d "{\"email\":\"$EMAIL\",\"password\":\"$PASSWORD\"}")
@@ -66,7 +66,7 @@ echo "TOKEN: ${TOKEN:0:16}..."
 # ==============================
 # 4) 上传 PDF，得到文档 id
 # ==============================
-say "4) 上传 PDF：/api/upload-document"
+say "4) Upload PDF：/api/upload-document"
 UP_JSON=$(curl -s -X POST "$BASE/api/upload-document" \
   -H "Authorization: Bearer $TOKEN" \
   -F "file=@${PDF};type=application/pdf" \
@@ -75,19 +75,19 @@ echo "RESP: $UP_JSON"
 DOC_ID=$(json_get_number "$UP_JSON" "id")
 # 如果 id 是字符串（有些实现返回字符串 id），换成字符串提取
 if [ -z "$DOC_ID" ]; then DOC_ID=$(json_get_string "$UP_JSON" "id"); fi
-[ -n "$DOC_ID" ] || die "上传失败，未拿到文档 id"
+[ -n "$DOC_ID" ] || die "upload fail cannot get document id"
 echo "DOC_ID: $DOC_ID"
 
 # ==============================
 # 5) 列出文档
 # ==============================
-say "5) 列出文档：/api/list-documents"
+say "5) List document：/api/list-documents"
 curl -s -H "Authorization: Bearer $TOKEN" "$BASE/api/list-documents" | head -c 600; echo
 
 # ==============================
 # 6) 创建水印版本
 # ==============================
-say "6) 创建水印版本：/api/create-watermark"
+say "6) Create watermark：/api/create-watermark"
 CW_JSON=$(
   curl -s -X POST "$BASE/api/create-watermark" \
     -H "Authorization: Bearer $TOKEN" \
@@ -121,22 +121,22 @@ fi
 if [ -n "$VER_LINK" ]; then
   echo "VERSION LINK: $VER_LINK"
 else
-  echo "❌ 未能获取到版本 link（创建失败或实现未返回 link）。"
+  echo "❌ Can't get link（创建失败或实现未返回 link）。"
   # 也可以在这里 exit 1
 fi
 
 # ==============================
 # 7) 列出该文档所有版本
 # ==============================
-say "7) 列出版本：/api/list-versions/${DOC_ID}"
+say "7) List-version：/api/list-versions/${DOC_ID}"
 curl -s -H "Authorization: Bearer $TOKEN" "$BASE/api/list-versions/${DOC_ID}" | head -c 600; echo
 
 # ==============================
 # 8) 验证水印
 # ==============================
-say "8) 验证水印：/api/read-watermark"
+say "8) Read=watermark：/api/read-watermark"
 if [ -n "$VER_LINK" ]; then
-  echo "⇒ 下载版本并本地验证水印"
+  echo "⇒ Download the version and verify the watermark locally"
   curl -s -H "Authorization: Bearer $TOKEN" \
        -o wm.pdf "$BASE/api/get-version/$VER_LINK"
 
@@ -145,15 +145,15 @@ if [ -n "$VER_LINK" ]; then
 print(AddAfterEOF().read_secret(pdf_bytes=sys.stdin.buffer.read(), key='K1'))" \
   < wm.pdf
 else
-  echo "❌ 没有拿到 link，无法验证"
+  echo "❌ Can't get link，unable verify"
 fi
 
 # ==============================
 # 9) 删除文档
 # ==============================
-say "9) 删除文档：/api/delete-document/${DOC_ID}"
+say "9) Delete document：/api/delete-document/${DOC_ID}"
 DEL_JSON=$(curl -s -X DELETE -H "Authorization: Bearer $TOKEN" \
   "$BASE/api/delete-document/${DOC_ID}")
 echo "RESP: $DEL_JSON"
 
-say "✅ 全流程完成（无 jq 版）"
+say "✅ Complete the entire process "
