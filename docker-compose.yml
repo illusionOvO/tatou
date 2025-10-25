@@ -32,7 +32,6 @@ services:
 
       #- ./server/keys/clients:/app/server/keys/clients:ro
       - ./srv/tatou/flags/server_flag:/app/flag:ro
-      - ./server/test.pdf:/app/test.pdf:ro
 
     depends_on:
       db:
