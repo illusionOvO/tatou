@@ -28,7 +28,7 @@ services:
 
       #- /home/lab/Desktop/privatekeys/server_pub.asc:/app/server/keys/server_pub.asc:ro
       #- /home/lab/Desktop/privatekeys/server_priv.asc:/app/server/keys/server_priv.asc:ro
-      - /home/lab/Desktop/privatekeys/clients:/app/server/keys/clients:ro
+      #- /home/lab/Desktop/privatekeys/clients:/app/server/keys/clients:ro
 
       #- ./server/keys/clients:/app/server/keys/clients:ro
       - ./srv/tatou/flags/server_flag:/app/flag:ro
