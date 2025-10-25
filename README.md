@@ -1,58 +1,253 @@
-# tatou
-A web platform for pdf watermarking. This project is intended for pedagogical use, and contain security vulnerabilities. Do not deploy on an open network.
+# 🧪 Tatou Project — Testing Guide (Integration & Black-Box Fuzzing)
 
-## Instructions
+## 1. Overview
 
-The following instructions are meant for a bash terminal on a Linux machine. If you are using something else, you will need to adapt them.
+This document describes the testing framework for the **Tatou PDF Watermark System**, which includes both **integration tests** and a comprehensive **black-box fuzzing test** suite.
 
-To clone the repo, you can simply run:
+The tests validate system stability, correctness, and robustness across key functionalities such as:
+
+* Visible watermark creation and verification
+* Add-after-EOF watermark embedding
+* PDF metadata validation and HMAC verification
+* API robustness and security testing through fuzzing
+
+---
+
+## 2. Test Components
+
+| Script             | Purpose                                                                                      | Notes                                      |
+| ------------------ | -------------------------------------------------------------------------------------------- | ------------------------------------------ |
+| `visible-text.sh`  | Tests visible watermark generation                                                           | Functional verification                    |
+| `smoke.sh`         | Smoke test for the **add-after-EOF** watermark method                                        | Ensures core watermarking works end-to-end |
+| `text_metadata.sh` | Verifies metadata and HMAC signatures inside PDFs                                            | Ensures integrity and authenticity         |
+| `run_all.sh`       | Unified runner to execute all the above tests sequentially and produce a single combined log | Aggregates results                         |
+| `fuzz_all_api.py`  | Automated **black-box fuzzing** of the entire API (based on `API.md`)                        | Detects robustness and security issues     |
+
+---
+
+## 3. Environment Setup
+
+### 3.1 Prerequisites
+
+* Docker & Docker Compose installed
+
+* The Tatou service stack running:
+
+  ```bash
+  docker compose up -d
+  ```
+
+* Confirm containers are active:
+
+  ```bash
+  docker ps
+  ```
+
+  Ensure `tatou-server-1` and `db` are running.
+
+* Have a test PDF file accessible, e.g.:
+
+  ```
+  E:/project/tatou/test.pdf
+  ```
+
+---
+
+## 4. Integration Test Suite (`run_all.sh`)
+
+`run_all.sh` runs all three core test scripts and aggregates results into one unified log file.
+
+### Run Example
 
 ```bash
-git clone https://github.com/nharrand/tatou.git
+cd /e/project/tatou/Scripts
+./run_all.sh
+# or explicitly specify variables
+PDF="E:/project/tatou/test.pdf" BASE="http://127.0.0.1:5000" ./run_all.sh
 ```
 
-Note that you should probably fork the repo and clone your own repo.
+### Output
 
+A log file named:
 
-### Run python unit tests
+```
+test_results_YYYYMMDD_HHMMSS.log
+```
+
+It includes:
+
+* Command executed per test
+* Timestamps
+* Exit codes
+* Standard and error outputs
+
+Each test result is clearly separated by visual markers for easy inspection.
+
+---
+
+## 5. Black-Box Fuzz Testing (`fuzz_all_api.py`)
+
+### 5.1 Test Type
+
+* **Black-Box Testing** — The system is tested externally via its API endpoints, without accessing source code.
+* **Fuzz Testing (Fuzzing)** — Automated random and edge-case input generation tests API robustness.
+
+This ensures Tatou’s API can safely handle malformed, unexpected, or malicious input without crashing or leaking sensitive data.
+
+---
+
+### 5.2 What It Does
+
+`fuzz_all_api.py`:
+
+* Automatically registers a temporary test user
+* Logs in and retrieves an authorization token
+* Uploads a sample PDF to initialize `doc_id`
+* Fuzzes all API endpoints defined in `API.md`, including:
+
+  * `create-user`, `login`, `upload-document`,
+  * `create-watermark`, `read-watermark`,
+  * `list-versions`, `list-documents`,
+  * `rmap-initiate`, `rmap-get-link`, etc.
+* Logs and saves only **interesting results**:
+
+  * HTTP 5xx errors
+  * Tracebacks or crashes
+  * Non-JSON responses for JSON endpoints
+  * Network or request exceptions
+* Generates summary files for quick analysis.
+
+---
+
+### 5.3 Running the Fuzz Test
+
+#### On Git Bash
 
 ```bash
-cd tatou/server
+cd /e/project/tatou/Scripts
 
-# Create a python virtual environement
-python3 -m venv .venv
+# Start backend if not running
+docker compose up -d
 
-# Activate your virtual environement
-. .venv/bin/activate
-
-# Install the necessary dependencies
-python -m pip install -e ".[dev]"
-
-# Run the unit tests
-python -m pytest
+# Run fuzzing (default: 200 samples per endpoint)
+TATOU_BASE=http://127.0.0.1:5000 FUZZ_EXAMPLES=200 python -u fuzz_all_api.py
 ```
 
-### Deploy
+#### On PowerShell
 
-From the root of the directory:
-
-```bash
-# Create a file to set environement variables like passwords.
-cp sample.env .env
-
-# Edit .env and pick the passwords you want
-
-# Rebuild the docker image and deploy the containers
-docker compose up --build -d
-
-# Monitor logs in realtime 
-docker compose logs -f
-
-# Test if the API is up
-http -v :5000/healthz
-
-# Open your browser at 127.0.0.1:5000 to check if the website is up.
+```powershell
+$env:TATOU_BASE="http://127.0.0.1:5000"
+$env:FUZZ_EXAMPLES="200"
+python -u .\fuzz_all_api.py
 ```
 
+#### Environment Variables
+
+| Variable        | Default                 | Description                                            |
+| --------------- | ----------------------- | ------------------------------------------------------ |
+| `TATOU_BASE`    | `http://127.0.0.1:5000` | Base URL of the running API                            |
+| `FUZZ_EXAMPLES` | `200`                   | Number of samples generated by Hypothesis per endpoint |
+
+---
+
+### 5.4 Output Files
+
+All results are stored in the `./fuzz-results/` directory.
+
+| File                                  | Description                                             |
+| ------------------------------------- | ------------------------------------------------------- |
+| `<endpoint>_<status>_<timestamp>.log` | Detailed case logs for each interesting (error) request |
+| `summary_<timestamp>.json`            | Machine-readable summary of endpoints tested            |
+| `summary_<timestamp>.log`             | Human-readable summary report                           |
+
+#### Example
+
+```
+create-user             sent=200  saved=3  last=200
+login                   sent=200  saved=0  last=200
+upload-document         sent=200  saved=2  last=500
+create-watermark        sent=600  saved=8  last=500
+```
+
+---
+
+### 5.5 Interpreting Results
+
+**Saved Cases:**
+A case is saved when one or more of these occur:
+
+* HTTP status ≥ 500
+* Response contains `"traceback"` or stack trace
+* Response expected to be JSON but isn’t
+* Request failed due to timeout or network error
+
+**To Debug:**
+
+1. Review `summary_*.log` to locate endpoints with high error counts.
+2. Inspect corresponding `.log` files to see request/response data.
+3. Replay the problematic requests (using `curl` or Postman) to reproduce and debug.
+
+---
+
+### 5.6 Safety & Best Practices
+
+⚠️ **Do not run fuzzing in production.**
+It sends malformed and randomized inputs that can:
+
+* Corrupt data
+* Exhaust resources
+* Generate massive logs
+
+Run fuzzing only in:
+
+* Local or staging environments
+* Isolated databases or Docker volumes
+
+If your endpoints modify data (e.g., `delete-document`), the script minimizes destructive calls, but you should still ensure your environment is disposable.
+
+---
 
 
+---
+
+## 6. Troubleshooting
+
+| Error                                 | Cause                                             | Fix                                       |
+| ------------------------------------- | ------------------------------------------------- | ----------------------------------------- |
+| `PDF: unbound variable`               | Missing default in `run_all.sh`                   | Use `${PDF:-E:/project/tatou/test.pdf}`   |
+| `Missing PDF: test.pdf`               | Relative path issue                               | Add `cd /e/project/tatou` in `run_all.sh` |
+| `Cannot connect to the Docker daemon` | Docker Desktop not running                        | Start Docker and retry                    |
+| Excessive fuzz logs                   | Too many saved cases                              | Lower `FUZZ_EXAMPLES` or delete old logs  |
+| Need to save successful cases         | Modify `interesting()` logic in `fuzz_all_api.py` |                                           |
+
+---
+
+## 7. Summary
+
+| Testing Type               | Layer             | Description                                                                                   |
+| -------------------------- | ----------------- | --------------------------------------------------------------------------------------------- |
+| **Integration Testing**    | Application Layer | Ensures end-to-end functionality of watermarking features                                     |
+| **Black-Box Fuzz Testing** | API Layer         | Randomized input testing to validate system robustness and security                           |
+| **Outcome**                |                   | Detects crashes, unhandled exceptions, type errors, access violations, and performance issues |
+
+---
+
+## 8. Recommendations
+
+* Keep `fuzz-results/` in `.gitignore`
+* Schedule periodic fuzzing runs (e.g., weekly or post-release)
+* Extend fuzzing to include file uploads with corrupt or oversized PDFs
+* Optionally add coverage metrics using tools like **pytest-cov** or **hypothesis-profile**
+
+---
+
+## 9. Conclusion
+
+The combined **integration + fuzz testing** workflow ensures that Tatou’s PDF watermarking system remains:
+
+* Functionally correct
+* Stable under extreme input conditions
+* Secure against malformed or malicious requests
+
+
+---
