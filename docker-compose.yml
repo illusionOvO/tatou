@@ -16,8 +16,8 @@ services:
       DB_PASSWORD: ${MARIADB_PASSWORD}
       FLAG_2: ${FLAG_2}
       RMAP_KEYS_DIR: /app/server/keys/clients
-      RMAP_SERVER_PUB: /home/lab/Desktop/privatekeys/server_pub.asc
-      RMAP_SERVER_PRIV: /home/lab/Desktop/privatekeys/server_priv.asc
+      RMAP_SERVER_PUB: /app/server/keys/server_pub.asc
+      RMAP_SERVER_PRIV: /app/server/keys/server_priv.asc
       RMAP_INPUT_PDF: /app/test.pdf
       STORAGE_DIR: /app/storage
       WATERMARK_HMAC_KEY: ${WATERMARK_HMAC_KEY}
