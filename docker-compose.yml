@@ -26,8 +26,8 @@ services:
       - ./server:/app/server
       - ./storage:/app/storage
 
-      - /home/lab/Desktop/privatekeys/server_pub.asc:/app/server/keys/server_pub.asc:ro
-      - /home/lab/Desktop/privatekeys/server_priv.asc:/app/server/keys/server_priv.asc:ro
+      #- /home/lab/Desktop/privatekeys/server_pub.asc:/app/server/keys/server_pub.asc:ro
+      #- /home/lab/Desktop/privatekeys/server_priv.asc:/app/server/keys/server_priv.asc:ro
       - /home/lab/Desktop/privatekeys/clients:/app/server/keys/clients:ro
 
       #- ./server/keys/clients:/app/server/keys/clients:ro
