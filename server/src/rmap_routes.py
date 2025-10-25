@@ -49,7 +49,7 @@ def _cfg(key: str, default=None):
 RMAP_KEYS_DIR    = _expand(os.getenv("RMAP_KEYS_DIR", "server/keys/clients"))
 RMAP_SERVER_PRIV = _expand(os.getenv("RMAP_SERVER_PRIV", "server/keys/server_priv.asc"))
 RMAP_SERVER_PUB  = _expand(os.getenv("RMAP_SERVER_PUB",  "server/keys/server_pub.asc"))
-RMAP_INPUT_PDF   = _expand(os.getenv("RMAP_INPUT_PDF", "server/Group_16.pdf"))
+RMAP_INPUT_PDF   = _expand(os.getenv("RMAP_INPUT_PDF", "server/test.pdf"))
 WATERMARK_HMAC_KEY = os.getenv("WATERMARK_HMAC_KEY", "dev-key-change-me")
 
 if not (RMAP_KEYS_DIR and os.path.isdir(RMAP_KEYS_DIR)):
