@@ -1,0 +1,94 @@
+# Tatou 集成测试日志  2025-10-26 01:47:27
+# BASE=http://127.0.0.1:5000
+# PDF=test.pdf
+
+-----------------------------------------------------------------
+[2025-10-26 01:47:27] START visible-text.sh
+CMD: bash ./visible-text.sh
+
+
+[1;36m=> health check[0m
+[1;32m✔ healthz ok[0m
+
+[1;36m=> create-user[0m
+RESP: {"email":"demo_1761436048001843100_29349@example.com","id":29,"login":"demo_1761436048001843100_29349"}
+
+[1;36m=> login -> token[0m
+RESP: {"expires_in":86400,"token":".eJyrVirNTFGyMrLUUcrJT8_MU7JSSknNzY83NDczNDE2MzCxMDAwtDAxNjQwiDeyNDaxVNJRSs1NzMwhqNAhtSIxtyAnVS85P1epFgC0Hhwo.aP1hkA.58b1I2y7rpxdm6-hwYl_hyvkXoA","token_type":"bearer"}
+token=_.eJyrVirNTFG...
+
+[1;36m=> upload-document[0m
+RESP: {"creation":"2025-10-25T23:47:28.735449","id":17,"name":"test.pdf","sha256":"24F76CAEAEC92D7C0D1D8F1F97E9925226E1C7F6C4AE08FF2DF97FC3756A8D8B","size":34156}
+[1;32m✔ doc_id=17[0m
+
+[1;36m=> create-watermark method=visible-text-redundant[0m
+RESP: {"documentid":17,"filename":"test__qa-user-1761436047.pdf","id":17,"intended_for":"qa-user-1761436047","link":"6802edca5cb1406e2138da65b3a271f4cd12c66a","method":"visible-text-redundant","position":"br","size":34727}
+[1;32m✔ link=6802edca5cb1406e2138da65b3a271f4cd12c66a[0m
+
+[1;36m=> verify watermark -> container VisibleTextWatermark.read_secret[0m
+HELLO_VTEXT_1761436047
+[1;32m✔ visible-text flow ok[0m
+
+[2025-10-26 01:47:30] END   visible-text.sh
+-----------------------------------------------------------------
+
+-----------------------------------------------------------------
+[2025-10-26 01:47:30] START smoke.sh
+CMD: bash ./smoke.sh
+
+
+[1;36m=> health check /healthz[0m
+[1;32m✔ healthz ok[0m
+
+[1;36m=> create-user  /api/create-user[0m
+RESP: {"email":"demo_1761436050938074000_15650@example.com","id":30,"login":"demo_1761436050938074000_15650"}
+
+[1;36m=> login  /api/login -> token[0m
+RESP: {"expires_in":86400,"token":".eJyrVirNTFGyMjbQUcrJT8_MU7JSSknNzY83NDczNDE2MzA1sDS2MDA3MTAwiDc0NTM1UNJRSs1NzMwhqNAhtSIxtyAnVS85P1epFgCw6Bwa.aP1hkw.16DlD6fAObi7IByiv_yXlVW02C0","token_type":"bearer"}
+token=_.eJyrVirNTFG...
+
+[1;36m=> upload-document  /api/upload-document[0m
+RESP: {"creation":"2025-10-25T23:47:31.495719","id":18,"name":"test.pdf","sha256":"24F76CAEAEC92D7C0D1D8F1F97E9925226E1C7F6C4AE08FF2DF97FC3756A8D8B","size":34156}
+[1;32m✔ doc_id=18[0m
+
+[1;36m=> create-watermark  /api/create-watermark  method=trailer-hmac[0m
+RESP: {"documentid":18,"filename":"test__qa-user-1761436050938074000.pdf","id":18,"intended_for":"qa-user-1761436050938074000","link":"7b1fdf7bf4448166ac1fad0f1a0a050561407502","method":"trailer-hmac","position":"eof","size":34400}
+[1;32m✔ link=7b1fdf7bf4448166ac1fad0f1a0a050561407502[0m
+
+[1;36m=> verify watermark (container)[0m
+HELLO_TATOU_1761436050938074000
+[1;32m✔ smoke flow ok[0m
+
+[2025-10-26 01:47:33] END   smoke.sh
+-----------------------------------------------------------------
+
+-----------------------------------------------------------------
+[2025-10-26 01:47:33] START text_metadata.sh
+CMD: bash ./text_metadata.sh
+
+
+[1;36m=> healthz[0m
+[1;32m✔ healthz ok[0m
+
+[1;36m=> create-user[0m
+RESP: {"email":"demo_1761436053550998800_30332@example.com","id":31,"login":"demo_1761436053550998800_30332"}
+
+[1;36m=> login[0m
+RESP: {"expires_in":86400,"token":".eJyrVirNTFGyMjbUUcrJT8_MU7JSSknNzY83NDczNDE2MzA1NjU1sLS0sDAwiDc2MDY2UtJRSs1NzMwhqNAhtSIxtyAnVS85P1epFgC1BBwv.aP1hlQ.hF2I84eSlv6BrWdKuTQf4G0XOR0","token_type":"bearer"}
+
+[1;36m=> upload-document[0m
+RESP: {"creation":"2025-10-25T23:47:34.186649","id":19,"name":"test.pdf","sha256":"24F76CAEAEC92D7C0D1D8F1F97E9925226E1C7F6C4AE08FF2DF97FC3756A8D8B","size":34156}
+
+[1;36m=> create-watermark metadata-xmp[0m
+curl: (22) The requested URL returned error: 503
+RESP: {"error":"database error during version insert: (pymysql.err.IntegrityError) (1062, \"Duplicate entry '05ffb7a0f365637f3f1ffb67f8afb4fb67dbd19f' for key 'uq_Versions_link'\")\n[SQL: \n                        INSERT INTO Versions (documentid, link, intended_for, secret, method, position, path)\n                        VALUES (%(documentid)s, %(link)s, %(intended_for)s, %(secret)s, %(method)s, %(position)s, %(path)s)\n                    ]\n[parameters: {'documentid': 19, 'link': '05ffb7a0f365637f3f1ffb67f8afb4fb67dbd19f', 'intended_for': 'qa', 'secret': 'HELLO_XMP_1761436053550998800', 'method': 'metadata-xmp', 'position': 'k1_1761436053550998800', 'path': '/app/storage/files/demo_1761436053550998800_30332/watermarks/test__qa.pdf'}]\n(Background on this error at: https://sqlalche.me/e/20/gkpj)"}
+[1;32m✔ duplicate -> reuse link: 05ffb7a0f365637f3f1ffb67f8afb4fb67dbd19f[0m
+[1;32m✔ link=05ffb7a0f365637f3f1ffb67f8afb4fb67dbd19f[0m
+
+[1;36m=> verify in container[0m
+HELLO_XMP_1761433112
+[1;32m✔ metadata flow ok[0m
+
+[2025-10-26 01:47:36] END   text_metadata.sh
+-----------------------------------------------------------------
+
