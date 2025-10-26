@@ -2,158 +2,126 @@
 set -euo pipefail
 
 # ==============================
-# 配置区（按需修改）
+# 基础配置（可用环境变量覆盖）
 # ==============================
-BASE="http://127.0.0.1:5000"            # 后端基址
-PDF="/mnt/e/SOFTSEC VT 2025 Group project/tatou/test.pdf"         # 测试 PDF 路径
-STAMP=$(date +%s)               #时间戳，保证唯一
-METHOD="trailer-hmac"           # 水印方法
+BASE="${BASE:-http://127.0.0.1:5000}"
+PDF="${PDF:-test.pdf}"     # 本机测试 PDF；Windows 可用 E:/...，Linux 用 /home/...
+METHOD="trailer-hmac"
 POSITION="eof"
 KEY="K1"
-SECRET="HELLO_TATOU_${STAMP}"
-INTENDED_FOR="qa-user-${STAMP}"
 
-TS=$(date +%s)
-LOGIN="demo_${TS}"
-EMAIL="demo_${TS}@example.com"
-PASSWORD="Passw0rd!"
+# 把 Windows 路径转成 Unix 路径（Git Bash / WSL 兼容）；纯 Linux 原样使用
+if command -v cygpath >/dev/null 2>&1; then
+  PDF_UNIX="$(cygpath -u "$PDF")"
+elif command -v wslpath >/dev/null 2>&1; then
+  PDF_UNIX="$(wslpath -a "$PDF")"
+else
+  PDF_UNIX="$PDF"
+fi
+: "${PDF_UNIX:=$PDF}"                        # 防御：确保 set -u 下变量已定义
+[ -r "$PDF_UNIX" ] || { echo "Missing PDF: $PDF_UNIX" >&2; exit 26; }
 
 # ==============================
-# 小工具函数（无 jq 解析 JSON）
+# 小工具函数（与 text_metadata.sh 保持一致风格）
 # ==============================
-say() { printf "\n\033[1;96m==> %s\033[0m\n" "$*"; }
-die() { printf "\n\033[1;91m[ERROR]\033[0m %s\n" "$*" >&2; exit 1; }
+say(){ printf "\n\033[1;36m=> %s\033[0m\n" "$*"; }
+ok(){  printf "\033[1;32m✔ %s\033[0m\n" "$*"; }
+fail(){ printf "\033[1;31m✘ %s\033[0m\n" "$*"; exit 1; }
+js_str(){ sed -n "s/.*\\\"$1\\\"[[:space:]]*:[[:space:]]*\\\"\\([^\"]*\\)\\\".*/\\1/p"; }
+js_int(){ sed -n "s/.*\\\"$1\\\"[[:space:]]*:[[:space:]]*\\([0-9]\\+\\).*/\\1/p"; }
 
-# 从一行 JSON 提取 "key":"value" 的字符串值
-json_get_string () {
-  local json="$1" key="$2"
-  echo "$json" | tr -d '\n' | sed -n "s/.*\"$key\"[[:space:]]*:[[:space:]]*\"\\([^\"]*\\)\".*/\\1/p"
+# ==============================
+# 1) healthz
+# ==============================
+say "health check /healthz"
+curl -sS -m 5 "$BASE/api/healthz" >/dev/null || \
+curl -sS -m 5 "$BASE/healthz"     >/dev/null || fail "healthz failed"
+ok "healthz ok"
+
+# ==============================
+# 2) 动态创建用户 & 登录（避免重复账号）
+# ==============================
+TS="$(date +%s%N)"; RND="$RANDOM"
+LOGIN="demo_${TS}_${RND}"
+EMAIL="${LOGIN}@example.com"
+PASSWORD="P@ss-${TS}"
+
+say "create-user  /api/create-user"
+CREATE_JSON="$(curl -sS --fail-with-body -m 10 -X POST "$BASE/api/create-user" \
+  -H 'Content-Type: application/json' \
+  -d "{\"login\":\"$LOGIN\",\"password\":\"$PASSWORD\",\"email\":\"$EMAIL\"}")" || {
+  echo "RESP: ${CREATE_JSON:-<empty>}"; fail "create-user failed"
 }
-
-# 从一行 JSON 提取数字值  "key": 123
-json_get_number () {
-  local json="$1" key="$2"
-  echo "$json" | tr -d '\n' | sed -n "s/.*\"$key\"[[:space:]]*:[[:space:]]*\\([0-9]\\+\\).*/\\1/p"
-}
-
-# ==============================
-# 1) 健康检查
-# ==============================
-say "1) Health check：/healthz"
-curl -s -i "$BASE/healthz" | sed -n '1,6p' || true
-
-# ==============================
-# 2) 创建用户（已存在报 4xx 也不影响）
-# ==============================
-say "2) Create user：/api/create-user"
-CREATE_JSON=$(curl -s -X POST "$BASE/api/create-user" \
-  -H "Content-Type: application/json" \
-  -d "{\"login\":\"$LOGIN\",\"password\":\"$PASSWORD\",\"email\":\"$EMAIL\"}" || true)
 echo "RESP: $CREATE_JSON"
 
-# ==============================
-# 3) 登录，获取 token
-# ==============================
-say "3) Login：/api/login -> token"
-LOGIN_JSON=$(curl -s -X POST "$BASE/api/login" \
-  -H "Content-Type: application/json" \
-  -d "{\"email\":\"$EMAIL\",\"password\":\"$PASSWORD\"}")
+say "login  /api/login -> token"
+LOGIN_JSON="$(curl -sS --fail-with-body -m 10 -X POST "$BASE/api/login" \
+  -H 'Content-Type: application/json' \
+  -d "{\"email\":\"$EMAIL\",\"password\":\"$PASSWORD\"}")" || {
+  echo "RESP: ${LOGIN_JSON:-<empty>}"; fail "login failed"
+}
 echo "RESP: $LOGIN_JSON"
-TOKEN=$(json_get_string "$LOGIN_JSON" "token")
-[ -n "${TOKEN:-}" ] || die "登录失败，未拿到 token"
-echo "TOKEN: ${TOKEN:0:16}..."
+TOKEN="$(echo "$LOGIN_JSON" | js_str token)"; [ -n "${TOKEN:-}" ] || fail "token missing"
+echo "token=_${TOKEN:0:12}..."
 
 # ==============================
-# 4) 上传 PDF，得到文档 id
+# 3) 上传 PDF （关键：使用 $PDF_UNIX）
 # ==============================
-say "4) Upload PDF：/api/upload-document"
-UP_JSON=$(curl -s -X POST "$BASE/api/upload-document" \
+say "upload-document  /api/upload-document"
+UP_JSON="$(curl -sS --fail-with-body -m 20 -X POST "$BASE/api/upload-document" \
   -H "Authorization: Bearer $TOKEN" \
-  -F "file=@${PDF};type=application/pdf" \
-  -F "name=$(basename "$PDF")")
+  -F "name=$(basename "$PDF_UNIX")" \
+  -F "file=@${PDF_UNIX};type=application/pdf")" || {
+  echo "RESP: ${UP_JSON:-<empty>}"; fail "upload failed"
+}
 echo "RESP: $UP_JSON"
-DOC_ID=$(json_get_number "$UP_JSON" "id")
-# 如果 id 是字符串（有些实现返回字符串 id），换成字符串提取
-if [ -z "$DOC_ID" ]; then DOC_ID=$(json_get_string "$UP_JSON" "id"); fi
-[ -n "$DOC_ID" ] || die "upload fail cannot get document id"
-echo "DOC_ID: $DOC_ID"
+DOC_ID="$(echo "$UP_JSON" | js_int id)"; [ -n "${DOC_ID:-}" ] || DOC_ID="$(echo "$UP_JSON" | js_str id)"
+[ -n "${DOC_ID:-}" ] || fail "parse doc id failed"
+ok "doc_id=$DOC_ID"
 
 # ==============================
-# 5) 列出文档
+# 4) 创建水印版本（trailer-hmac）
 # ==============================
-say "5) List document：/api/list-documents"
-curl -s -H "Authorization: Bearer $TOKEN" "$BASE/api/list-documents" | head -c 600; echo
-
-# ==============================
-# 6) 创建水印版本
-# ==============================
-say "6) Create watermark：/api/create-watermark"
-CW_JSON=$(
-  curl -s -X POST "$BASE/api/create-watermark" \
-    -H "Authorization: Bearer $TOKEN" \
-    -H "Content-Type: application/json" \
-    -d "{
-          \"id\": ${DOC_ID},
-          \"method\": \"${METHOD}\",
-          \"position\": \"${POSITION}\",
-          \"key\": \"${KEY}\",
-          \"secret\": \"${SECRET}\",
-          \"intended_for\": \"${INTENDED_FOR}\"
-        }"
+SECRET="HELLO_TATOU_${TS}"
+INTENDED_FOR="qa-user-${TS}"
+say "create-watermark  /api/create-watermark  method=${METHOD}"
+BODY=$(cat <<JSON
+{"id": $DOC_ID, "method": "$METHOD", "position": "$POSITION", "key": "$KEY", "secret": "$SECRET", "intended_for": "$INTENDED_FOR"}
+JSON
 )
-echo "RESP: $CW_JSON"
+CW_JSON="$(curl -sS --fail-with-body -m 30 -X POST "$BASE/api/create-watermark" \
+  -H "Authorization: Bearer $TOKEN" \
+  -H "Content-Type: application/json" \
+  -d "$BODY")" || true
+echo "RESP: ${CW_JSON:-<empty>}"
 
-# 先尝试从正常返回里抓 link（40位hex）
-VER_LINK=$(echo "$CW_JSON" | sed -n 's/.*"link"[[:space:]]*:[[:space:]]*"\([a-f0-9]\{40\}\)".*/\1/p')
-
-# 如果没拿到 link，但报了 Duplicate，则兜底取“已存在”的那个 link
-if [ -z "$VER_LINK" ] && echo "$CW_JSON" | grep -q "Duplicate entry"; then
-  # 1) 先尝试从错误文本里直接提取 40位hex（常见返回里就带着）
-  VER_LINK=$(echo "$CW_JSON" | grep -oE '[a-f0-9]{40}' | head -n1)
+# 优先从返回中抓 link；若遇 Duplicate 则兜底
+VER_LINK="$(echo "$CW_JSON" | sed -n 's/.*"link"[[:space:]]*:[[:space:]]*"\([a-f0-9]\{40\}\)".*/\1/p')"
+if [ -z "${VER_LINK:-}" ] && echo "$CW_JSON" | grep -qi "Duplicate entry"; then
+  VER_LINK="$(echo "$CW_JSON" | grep -oE '[a-f0-9]{40}' | head -n1 || true)"
+  [ -n "${VER_LINK:-}" ] && ok "duplicate -> reuse link: $VER_LINK"
 fi
-
-# 再兜底：去查该文档的版本列表，拿“最新”的 link
-if [ -z "$VER_LINK" ]; then
-  LV=$(curl -s -H "Authorization: Bearer $TOKEN" "$BASE/api/list-versions/$DOC_ID")
-  VER_LINK=$(echo "$LV" | sed -n 's/.*"link"[[:space:]]*:[[:space:]]*"\([a-f0-9]\{40\}\)".*/\1/p' | tail -n1)
+if [ -z "${VER_LINK:-}" ]; then
+  say "fallback list-versions"
+  LV="$(curl -sS -m 10 -H "Authorization: Bearer $TOKEN" "$BASE/api/list-versions/$DOC_ID")" || true
+  echo "LIST: $LV"
+  VER_LINK="$(echo "$LV" | sed -n 's/.*"link"[[:space:]]*:[[:space:]]*"\([a-f0-9]\{40\}\)".*/\1/p' | tail -n1)"
 fi
-
-if [ -n "$VER_LINK" ]; then
-  echo "VERSION LINK: $VER_LINK"
-else
-  echo "❌ Can't get link（创建失败或实现未返回 link）。"
-  # 也可以在这里 exit 1
-fi
+[ -n "${VER_LINK:-}" ] || fail "no link returned"
+ok "link=$VER_LINK"
 
 # ==============================
-# 7) 列出该文档所有版本
+# 5) 下载并在容器内验证水印（不分配 TTY）
 # ==============================
-say "7) List-version：/api/list-versions/${DOC_ID}"
-curl -s -H "Authorization: Bearer $TOKEN" "$BASE/api/list-versions/${DOC_ID}" | head -c 600; echo
+say "verify watermark (container)"
+curl -sS --fail-with-body -m 20 -H "Authorization: Bearer $TOKEN" \
+     -o wm.pdf "$BASE/api/get-version/$VER_LINK"
 
-# ==============================
-# 8) 验证水印
-# ==============================
-say "8) Read=watermark：/api/read-watermark"
-if [ -n "$VER_LINK" ]; then
-  echo "⇒ Download the version and verify the watermark locally"
-  curl -s -H "Authorization: Bearer $TOKEN" \
-       -o wm.pdf "$BASE/api/get-version/$VER_LINK"
+# 直接通过 stdin 喂入容器内 Python，不用 -t
+docker exec -i tatou-server-1 python -c \
+"from server.src.add_after_eof import AddAfterEOF; import sys; \
+print(AddAfterEOF().read_secret(pdf_bytes=sys.stdin.buffer.read(), key='$KEY'))" \
+< wm.pdf
 
-  docker exec -i tatou-server-1 python -c \
-  "from server.src.add_after_eof import AddAfterEOF; import sys; \
-print(AddAfterEOF().read_secret(pdf_bytes=sys.stdin.buffer.read(), key='K1'))" \
-  < wm.pdf
-else
-  echo "❌ Can't get link，unable verify"
-fi
-
-# ==============================
-# 9) 删除文档
-# ==============================
-say "9) Delete document：/api/delete-document/${DOC_ID}"
-DEL_JSON=$(curl -s -X DELETE -H "Authorization: Bearer $TOKEN" \
-  "$BASE/api/delete-document/${DOC_ID}")
-echo "RESP: $DEL_JSON"
-
-say "✅ Complete the entire process "
+ok "smoke flow ok"
+exit 0

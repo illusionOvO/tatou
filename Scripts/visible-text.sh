@@ -5,125 +5,136 @@ set -euo pipefail
 # 配置（可用环境变量覆盖）
 # ==============================
 BASE="${BASE:-http://127.0.0.1:5000}"
-PDF="${PDF:-test.pdf}"                  # 本地测试 PDF
+PDF="${PDF:-test.pdf}"          # 本机测试 PDF：Windows 用 E:/...；Linux 用 /home/...
 SERVER_CONT="${SERVER_CONT:-tatou-server-1}"
 
-METHOD="visible-text-redundant"
+METHOD="${METHOD:-visible-text-redundant}"
 POSITION="${POSITION:-br}"
 KEY="${KEY:-K3}"
-STAMP=$(date +%s)
+
+STAMP="$(date +%s)"
 SECRET="${SECRET:-HELLO_VTEXT_${STAMP}}"
 INTENDED_FOR="${INTENDED_FOR:-qa-user-${STAMP}}"
 
-TS=$(date +%s)
-LOGIN="demo_${TS}"
-EMAIL="demo_${TS}@example.com"
-PASSWORD="p@ssw0rd"
+# 动态唯一账号，避免 email/login 已存在
+TS="$(date +%s%N)"; RND="$RANDOM"
+LOGIN="demo_${TS}_${RND}"
+EMAIL="${LOGIN}@example.com"
+PASSWORD="P@ss-${TS}"
+
+# ==============================
+# 路径统一（关键：避免 curl (26)）
+# ==============================
+if command -v cygpath >/dev/null 2>&1; then
+  PDF_UNIX="$(cygpath -u "$PDF")"
+elif command -v wslpath >/dev/null 2>&1; then
+  PDF_UNIX="$(wslpath -a "$PDF")"
+else
+  PDF_UNIX="$PDF"
+fi
+: "${PDF_UNIX:=$PDF}"          # 防御：确保在 set -u 下已定义
+[ -r "$PDF_UNIX" ] || { echo "Missing PDF: $PDF_UNIX" >&2; exit 26; }
 
 # ==============================
 # 小工具（无 jq 解析 JSON）
 # ==============================
-say()  { printf "\n\033[1;96m==> %s\033[0m\n" "$*"; }
+say()  { printf "\n\033[1;36m=> %s\033[0m\n" "$*"; }
 ok()   { printf "\033[1;32m✔ %s\033[0m\n" "$*"; }
-die()  { printf "\033[1;91m[ERROR]\033[0m %s\n" "$*" >&2; exit 1; }
-jstr() { sed -n "s/.*\"$2\"[[:space:]]*:[[:space:]]*\"\\([^\"]*\\)\".*/\\1/p" <<<"$1"; }
-jint() { sed -n "s/.*\"$2\"[[:space:]]*:[[:space:]]*\\([0-9]\\+\\).*/\\1/p" <<<"$1"; }
+fail() { printf "\033[1;31m✘ %s\033[0m\n" "$*"; exit 1; }
+jstr(){ sed -n "s/.*\\\"$1\\\"[[:space:]]*:[[:space:]]*\\\"\\([^\"]*\\)\\\".*/\\1/p"; }
+jint(){ sed -n "s/.*\\\"$1\\\"[[:space:]]*:[[:space:]]*\\([0-9]\\+\\).*/\\1/p"; }
 
 # ==============================
-# 0) 预检查
+# 1) 健康检查（两种路径都试）
 # ==============================
-[ -f "$PDF" ] || die "找不到 PDF: $PDF"
-
-# ==============================
-# 1) 健康检查
-# ==============================
-say "health check /healthz"
-curl -sS -m 5 "$BASE/healthz" >/dev/null || die "后端不可用"
+say "health check"
+curl -sS -m 5 "$BASE/api/healthz" >/dev/null || \
+curl -sS -m 5 "$BASE/healthz"     >/dev/null || fail "healthz failed"
 ok "healthz ok"
 
 # ==============================
-# 2) 创建用户（存在也不影响）
+# 2) 创建用户 & 登录
 # ==============================
-say "Create-user /api/create-user"
-curl -sS -m 10 -X POST "$BASE/api/create-user" \
-  -H "Content-Type: application/json" \
-  -d "{\"login\":\"$LOGIN\",\"password\":\"$PASSWORD\",\"email\":\"$EMAIL\"}" >/dev/null || true
+say "create-user"
+CREATE_JSON="$(curl -sS --fail-with-body -m 10 -X POST "$BASE/api/create-user" \
+  -H 'Content-Type: application/json' \
+  -d "{\"login\":\"$LOGIN\",\"password\":\"$PASSWORD\",\"email\":\"$EMAIL\"}")" || {
+  echo "RESP: ${CREATE_JSON:-<empty>}"; fail "create-user failed"
+}
+echo "RESP: $CREATE_JSON"
 
-# ==============================
-# 3) 登录换 token
-# ==============================
-say "Login /api/login"
-LOGIN_JSON=$(curl -sS -m 10 -X POST "$BASE/api/login" \
-  -H "Content-Type: application/json" \
-  -d "{\"email\":\"$EMAIL\",\"password\":\"$PASSWORD\"}")
+say "login -> token"
+LOGIN_JSON="$(curl -sS --fail-with-body -m 10 -X POST "$BASE/api/login" \
+  -H 'Content-Type: application/json' \
+  -d "{\"email\":\"$EMAIL\",\"password\":\"$PASSWORD\"}")" || {
+  echo "RESP: ${LOGIN_JSON:-<empty>}"; fail "login failed"
+}
 echo "RESP: $LOGIN_JSON"
-TOKEN=$(jstr "$LOGIN_JSON" token)
-[ -n "${TOKEN:-}" ] || die "登录失败，未拿到 token"
-ok "token=${TOKEN:0:16}..."
+TOKEN="$(echo "$LOGIN_JSON" | jstr token)"; [ -n "${TOKEN:-}" ] || fail "token missing"
+echo "token=_${TOKEN:0:12}..."
 
 # ==============================
-# 4) 上传 PDF
+# 3) 上传 PDF（使用 $PDF_UNIX）
 # ==============================
-say "Upload PDF /api/upload-document"
-UP_JSON=$(curl -sS -m 30 -X POST "$BASE/api/upload-document" \
+say "upload-document"
+UP_JSON="$(curl -sS --fail-with-body -m 30 -X POST "$BASE/api/upload-document" \
   -H "Authorization: Bearer $TOKEN" \
-  -F "file=@${PDF};type=application/pdf" \
-  -F "name=$(basename "$PDF")")
+  -F "name=$(basename "$PDF_UNIX")" \
+  -F "file=@${PDF_UNIX};type=application/pdf")" || {
+  echo "RESP: ${UP_JSON:-<empty>}"; fail "upload failed"
+}
 echo "RESP: $UP_JSON"
-DOC_ID=$(jint "$UP_JSON" id); [ -n "$DOC_ID" ] || DOC_ID=$(jstr "$UP_JSON" id)
-[ -n "${DOC_ID:-}" ] || die "上传失败，未拿到文档 id"
+DOC_ID="$(echo "$UP_JSON" | jint id)"; [ -n "${DOC_ID:-}" ] || DOC_ID="$(echo "$UP_JSON" | jstr id)"
+[ -n "${DOC_ID:-}" ] || fail "parse doc id failed"
 ok "doc_id=$DOC_ID"
 
 # ==============================
-# 5) 创建 visible-text 水印版本
+# 4) 创建 visible-text 版本
 # ==============================
-say "Create-watermark /api/create-watermark  method=${METHOD}"
+say "create-watermark method=${METHOD}"
 BODY=$(cat <<JSON
 {"id": $DOC_ID, "method": "$METHOD", "position": "$POSITION",
  "key": "$KEY", "secret": "$SECRET", "intended_for": "$INTENDED_FOR"}
 JSON
 )
-CW_JSON=$(curl -sS -m 60 --fail-with-body -X POST "$BASE/api/create-watermark" \
+CW_JSON="$(curl -sS --fail-with-body -m 60 -X POST "$BASE/api/create-watermark" \
   -H "Authorization: Bearer $TOKEN" \
   -H "Content-Type: application/json" \
-  -d "$BODY") || true
+  -d "$BODY")" || true
 echo "RESP: ${CW_JSON:-<empty>}"
 
-# 解析 link（40hex），容错 Duplicate
-LINK=$(sed -n 's/.*"link"[[:space:]]*:[[:space:]]*"\([a-f0-9]\{40\}\)".*/\1/p' <<<"$CW_JSON")
-if [ -z "${LINK:-}" ] && grep -qi "Duplicate entry" <<<"$CW_JSON"; then
-  LINK=$(grep -oE '[a-f0-9]{40}' <<<"$CW_JSON" | head -n1 || true)
+# 解析 link（容错 Duplicate）
+LINK="$(echo "$CW_JSON" | sed -n 's/.*"link"[[:space:]]*:[[:space:]]*"\([a-f0-9]\{40\}\)".*/\1/p')"
+if [ -z "${LINK:-}" ] && echo "$CW_JSON" | grep -qi "Duplicate entry"; then
+  LINK="$(echo "$CW_JSON" | grep -oE '[a-f0-9]{40}' | head -n1 || true)"
 fi
 if [ -z "${LINK:-}" ]; then
-  LV=$(curl -sS -m 10 -H "Authorization: Bearer $TOKEN" "$BASE/api/list-versions/$DOC_ID") || true
-  LINK=$(sed -n 's/.*"link"[[:space:]]*:[[:space:]]*"\([a-f0-9]\{40\}\)".*/\1/p' <<<"$LV" | tail -n1)
+  LV="$(curl -sS -m 10 -H "Authorization: Bearer $TOKEN" "$BASE/api/list-versions/$DOC_ID")" || true
+  LINK="$(echo "$LV" | sed -n 's/.*"link"[[:space:]]*:[[:space:]]*"\([a-f0-9]\{40\}\)".*/\1/p' | tail -n1)"
 fi
-[ -n "${LINK:-}" ] || die "未能获取版本 link"
+[ -n "${LINK:-}" ] || fail "no link returned"
 ok "link=$LINK"
 
 # ==============================
-# 6) 下载并验证（容器内调用 VisibleTextWatermark.read_secret）
+# 5) 下载并在容器内验证（自适应 TTY，避免 stdin is not a tty）
 # ==============================
-say "Verify watermark -> 容器内 read_secret(key='$KEY')"
-curl -sS -m 30 -H "Authorization: Bearer $TOKEN" \
-  -o wm_vtext.pdf "$BASE/api/get-version/$LINK"
+say "verify watermark -> container VisibleTextWatermark.read_secret"
+curl -sS --fail-with-body -m 30 -H "Authorization: Bearer $TOKEN" \
+     -o wm_vtext.pdf "$BASE/api/get-version/$LINK"
 
 docker cp wm_vtext.pdf "$SERVER_CONT":/tmp/wm_vtext.pdf
-if command -v winpty >/dev/null 2>&1; then PFX="winpty "; else PFX=""; fi
-${PFX}docker exec -it "$SERVER_CONT" python -c "
-from server.src.visible_text import VisibleTextWatermark;
-print(VisibleTextWatermark().read_secret(open('/tmp/wm_vtext.pdf','rb').read(), key='K3'))
+
+# 非交互环境不加 -t；且只有在有 TTY 且存在 winpty 时才用 winpty
+PFX=""
+if [ -t 1 ] && command -v winpty >/dev/null 2>&1; then
+  PFX="winpty "
+fi
+TTY_OPTS="-i"; [ -t 1 ] && TTY_OPTS="-it"
+
+${PFX}docker exec $TTY_OPTS "$SERVER_CONT" python -c "
+from server.src.visible_text import VisibleTextWatermark
+print(VisibleTextWatermark().read_secret(open('/tmp/wm_vtext.pdf','rb').read(), key='$KEY'))
 "
 
-ok "Done"
-
-# ==============================
-# 7) （可选）列版本 & 删除文档
-# ==============================
-say "List version /api/list-versions/$DOC_ID"
-curl -sS -m 10 -H "Authorization: Bearer $TOKEN" "$BASE/api/list-versions/$DOC_ID" | head -c 600; echo
-
-# 如不想删除，请注释掉下面两行
-say "Delete document /api/delete-document/$DOC_ID"
-curl -sS -m 10 -X DELETE -H "Authorization: Bearer $TOKEN" "$BASE/api/delete-document/$DOC_ID" || true
-ok "All done"
+ok "visible-text flow ok"
+exit 0
