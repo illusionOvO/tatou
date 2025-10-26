@@ -8,7 +8,7 @@ LOG="test_results_${TS}.log"
 # 你可以在这里统一设置环境变量（供支持覆盖的脚本使用）
 # 可按需改动，例如：BASE、PDF、SERVER_CONT...
 export BASE="${BASE:-http://127.0.0.1:5000}"
-export PDF="${PDF:-E:/project/tatou/test.pdf}"
+export PDF="${PDF:-test.pdf}"
 export SERVER_CONT="${SERVER_CONT:-tatou-server-1}"
 
 # 彩色输出（终端），同时写入日志（无颜色）
