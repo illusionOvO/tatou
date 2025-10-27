@@ -1,7 +1,18 @@
+#ROOT
+
 [mutmut]
-paths_to_mutate = ['tatou/']
-tests_dir = "tests"
+paths_to_mutate = ['server/src/']
+tests_dir = "server/tests"
 runner = "pytest -q"
 timeout = 30
 backup = true
 excluded_paths = ['tatou/migrations/', 'tatou/third_party/']
+
+#server/
+
+[mutmut]
+paths_to_mutate = ['src/']
+tests_dir = "test"
+runner = "pytest -q"
+timeout = 30
+backup = true

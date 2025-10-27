@@ -59,6 +59,11 @@ def main():
     parser.add_argument("--runner", default="pytest -q", help="Custom test runner command for mutmut (default: pytest -q)")
     args = parser.parse_args()
 
+    server_dir = Path("server")
+    if server_dir.exists() and server_dir.is_dir():
+        os.chdir(server_dir)
+        print("[INFO] Changed working directory to 'server/'")
+
     project_root = Path.cwd()
     reports_dir = project_root / "reports"
     reports_dir.mkdir(exist_ok=True)

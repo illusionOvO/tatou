@@ -27,7 +27,7 @@ concurrency:
 
 env:
   # 你可以在这里改默认的变异范围与测试命令
-  DEFAULT_MUTATE_PATHS: "tatou/"
+  DEFAULT_MUTATE_PATHS: "server/src/"
   DEFAULT_TEST_RUNNER_QUICK: "pytest -q -k 'not slow'"
   DEFAULT_TEST_RUNNER_FULL: "pytest -q"
   PYTHONDONTWRITEBYTECODE: "1"
