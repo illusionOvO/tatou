@@ -1,0 +1,101 @@
+<!doctype html><html><head><meta charset='utf-8'><title>fuzz htmlcov</title>
+<style>body{font-family:Arial,Helvetica,sans-serif}table{border-collapse:collapse}th,td{border:1px solid #ddd;padding:8px;vertical-align:top}th{background:#f5f5f5}pre{white-space:pre-wrap;max-width:700px}.bad{background:#ffd6d6}</style>
+</head><body>
+<h1>Fuzz HTML Coverage (auto login + upload)</h1>
+<p>Generated: Sun Oct 26 02:10:47 2025</p>
+<table><tr><th>Endpoint</th><th>Method</th><th>Attempts</th><th>Statuses (count)</th><th>Sample Request</th><th>Sample Response</th></tr>
+<tr class='bad'><td>/api/create-user</td><td>POST</td><td>4</td><td>201:2, 500:1, 400:1</td><td><pre>{&quot;headers&quot;: {&quot;Authorization&quot;: &quot;Bearer eyJ1aWQiOjQ3MiwibG9naW4iOiJmdXp6ZXJfMTc2MTQ0MDgxNTM0MyIsImVtYWlsIjoiZnV6emVyQGV4YW1wbGUubG9jYWwifQ.aP11FQ.4kQFVOkCwYXIMOU_DJ1kuiEMUg0&quot;}, &quot;params&quot;: null, &quot;body&quot;: {&quot;login&quot;: &quot;fuzzer_1761441045341&quot;, &quot;password&quot;: &quot;P@ssw0rd!&quot;, &quot;email&quot;: &quot;fuzzer1761441045341@example.local&quot;}}</pre></td><td><pre>{&quot;email&quot;:&quot;fuzzer1761441045341@example.local&quot;,&quot;id&quot;:479,&quot;login&quot;:&quot;fuzzer_1761441045341&quot;}
+</pre></td></tr>
+<tr><td>/api/create-watermark</td><td>POST</td><td>4</td><td>404:2, 401:2</td><td><pre>{&quot;headers&quot;: {&quot;Authorization&quot;: &quot;Bearer eyJ1aWQiOjQ3MiwibG9naW4iOiJmdXp6ZXJfMTc2MTQ0MDgxNTM0MyIsImVtYWlsIjoiZnV6emVyQGV4YW1wbGUubG9jYWwifQ.aP11FQ.4kQFVOkCwYXIMOU_DJ1kuiEMUg0&quot;}, &quot;params&quot;: null, &quot;body&quot;: {&quot;method&quot;: &quot;simple&quot;, &quot;position&quot;: &quot;center&quot;, &quot;key&quot;: &quot;k&quot;, &quot;secret&quot;: &quot;s&quot;, &quot;intended_for&quot;: &quot;user&quot;, &quot;id&quot;: 629}}</pre></td><td><pre>{&quot;error&quot;:&quot;document not found&quot;}
+</pre></td></tr>
+<tr><td>/api/create-watermark/{document_id}</td><td>POST</td><td>4</td><td>401:2, 404:1, 400:1</td><td><pre>{&quot;headers&quot;: {&quot;Authorization&quot;: &quot;Bearer eyJ1aWQiOjQ3MiwibG9naW4iOiJmdXp6ZXJfMTc2MTQ0MDgxNTM0MyIsImVtYWlsIjoiZnV6emVyQGV4YW1wbGUubG9jYWwifQ.aP11FQ.4kQFVOkCwYXIMOU_DJ1kuiEMUg0&quot;}, &quot;params&quot;: null, &quot;body&quot;: {&quot;method&quot;: &quot;simple&quot;, &quot;position&quot;: &quot;center&quot;, &quot;key&quot;: &quot;k&quot;, &quot;secret&quot;: &quot;s&quot;, &quot;intended_for&quot;: &quot;user&quot;, &quot;id&quot;: 629}}</pre></td><td><pre>{&quot;error&quot;:&quot;document not found&quot;}
+</pre></td></tr>
+<tr><td>/api/delete-document</td><td>DELETE</td><td>4</td><td>400:2, 401:2</td><td><pre>{&quot;headers&quot;: {&quot;Authorization&quot;: &quot;Bearer eyJ1aWQiOjQ3MiwibG9naW4iOiJmdXp6ZXJfMTc2MTQ0MDgxNTM0MyIsImVtYWlsIjoiZnV6emVyQGV4YW1wbGUubG9jYWwifQ.aP11FQ.4kQFVOkCwYXIMOU_DJ1kuiEMUg0&quot;}, &quot;params&quot;: null, &quot;body&quot;: {&quot;document_id&quot;: &quot;629&quot;}}</pre></td><td><pre>{&quot;error&quot;:&quot;document id required&quot;}
+</pre></td></tr>
+<tr><td>/api/delete-document/{document_id}</td><td>DELETE</td><td>4</td><td>401:2, 200:1, 404:1</td><td><pre>{&quot;headers&quot;: {&quot;Authorization&quot;: &quot;Bearer eyJ1aWQiOjQ3MiwibG9naW4iOiJmdXp6ZXJfMTc2MTQ0MDgxNTM0MyIsImVtYWlsIjoiZnV6emVyQGV4YW1wbGUubG9jYWwifQ.aP11FQ.4kQFVOkCwYXIMOU_DJ1kuiEMUg0&quot;}, &quot;params&quot;: null, &quot;body&quot;: null}</pre></td><td><pre>{&quot;deleted&quot;:true,&quot;file_deleted&quot;:true,&quot;file_missing&quot;:false,&quot;id&quot;:629}
+</pre></td></tr>
+<tr><td>/api/get-document</td><td>GET</td><td>4</td><td>200:2, 401:2</td><td><pre>{&quot;headers&quot;: {&quot;Authorization&quot;: &quot;Bearer eyJ1aWQiOjQ3MiwibG9naW4iOiJmdXp6ZXJfMTc2MTQ0MDgxNTM0MyIsImVtYWlsIjoiZnV6emVyQGV4YW1wbGUubG9jYWwifQ.aP11FQ.4kQFVOkCwYXIMOU_DJ1kuiEMUg0&quot;}, &quot;params&quot;: {&quot;id&quot;: 629}, &quot;body&quot;: null}</pre></td><td><pre>%PDF-1.7
+%����
+1 0 obj
+&lt;&lt;/Type/Catalog/Pages 2 0 R/Lang(zh) /StructTreeRoot 15 0 R/MarkInfo&lt;&lt;/Marked true&gt;&gt;/Metadata 28 0 R/ViewerPreferences 29 0 R&gt;&gt;
+endobj
+2 0 obj
+&lt;&lt;/Type/Pages/Count 1/Kids[ 3 0 R] &gt;&gt;
+endobj
+3 0 obj
+&lt;&lt;/Type/Page/Parent 2 0 R/Resources&lt;&lt;/Font&lt;&lt;/F1 5 0 R/F2 12 0 R&gt;&gt;/ExtGState&lt;&lt;/GS10 10 0 R/GS11 11 0 R&gt;&gt;/ProcSet[/PDF/Text/ImageB/ImageC/ImageI] &gt;&gt;/MediaBox[ 0 0 595.32 841.92] /Contents 4 0 R/Group&lt;&lt;/Type/Group/S/Transparency/CS/DeviceRGB&gt;&gt;/Tabs/S/StructParents 0&gt;&gt;
+endobj
+4 0 obj
+&lt;&lt;/Filter/FlateDecode/Length 284&gt;&gt;
+stream
+x���MK�@�������
+���W6&amp;i�b���P��d�������n`�ه�A�&lt;�{�y��.j��j�wX��M�,
+�u�Τ���}J���Z���끳�3���-gɆ������aZ���� 5Nh��)�m����nt�-�햳�\JUJiU(]�L�/��^r��\s���~�)��t*����PY����X6���6��a�a0�j��9�X�4 O��Ģy^M���p��6C�;m$��L8{Z�.�MYA��)�����T�����T{�h&quot;���a�;��
+endstream
+endobj
+5 0 obj
+&lt;&lt;/Type/Font/Subtype/Type0/BaseFont/BCDEEE+TimesNewRomanPSMT/Encoding/Identity-H/DescendantFonts 6 0 R/ToUnicode 24 0 R&gt;&gt;
+endobj
+6 0 obj
+</pre></td></tr>
+<tr><td>/api/get-document/{document_id}</td><td>GET</td><td>4</td><td>200:2, 401:2</td><td><pre>{&quot;headers&quot;: {&quot;Authorization&quot;: &quot;Bearer eyJ1aWQiOjQ3MiwibG9naW4iOiJmdXp6ZXJfMTc2MTQ0MDgxNTM0MyIsImVtYWlsIjoiZnV6emVyQGV4YW1wbGUubG9jYWwifQ.aP11FQ.4kQFVOkCwYXIMOU_DJ1kuiEMUg0&quot;}, &quot;params&quot;: null, &quot;body&quot;: null}</pre></td><td><pre>%PDF-1.7
+%����
+1 0 obj
+&lt;&lt;/Type/Catalog/Pages 2 0 R/Lang(zh) /StructTreeRoot 15 0 R/MarkInfo&lt;&lt;/Marked true&gt;&gt;/Metadata 28 0 R/ViewerPreferences 29 0 R&gt;&gt;
+endobj
+2 0 obj
+&lt;&lt;/Type/Pages/Count 1/Kids[ 3 0 R] &gt;&gt;
+endobj
+3 0 obj
+&lt;&lt;/Type/Page/Parent 2 0 R/Resources&lt;&lt;/Font&lt;&lt;/F1 5 0 R/F2 12 0 R&gt;&gt;/ExtGState&lt;&lt;/GS10 10 0 R/GS11 11 0 R&gt;&gt;/ProcSet[/PDF/Text/ImageB/ImageC/ImageI] &gt;&gt;/MediaBox[ 0 0 595.32 841.92] /Contents 4 0 R/Group&lt;&lt;/Type/Group/S/Transparency/CS/DeviceRGB&gt;&gt;/Tabs/S/StructParents 0&gt;&gt;
+endobj
+4 0 obj
+&lt;&lt;/Filter/FlateDecode/Length 284&gt;&gt;
+stream
+x���MK�@�������
+���W6&amp;i�b���P��d�������n`�ه�A�&lt;�{�y��.j��j�wX��M�,
+�u�Τ���}J���Z���끳�3���-gɆ������aZ���� 5Nh��)�m����nt�-�햳�\JUJiU(]�L�/��^r��\s���~�)��t*����PY����X6���6��a�a0�j��9�X�4 O��Ģy^M���p��6C�;m$��L8{Z�.�MYA��)�����T�����T{�h&quot;���a�;��
+endstream
+endobj
+5 0 obj
+&lt;&lt;/Type/Font/Subtype/Type0/BaseFont/BCDEEE+TimesNewRomanPSMT/Encoding/Identity-H/DescendantFonts 6 0 R/ToUnicode 24 0 R&gt;&gt;
+endobj
+6 0 obj
+</pre></td></tr>
+<tr><td>/api/get-version/{link}</td><td>GET</td><td>4</td><td>404:4</td><td><pre>{&quot;headers&quot;: {&quot;Authorization&quot;: &quot;Bearer eyJ1aWQiOjQ3MiwibG9naW4iOiJmdXp6ZXJfMTc2MTQ0MDgxNTM0MyIsImVtYWlsIjoiZnV6emVyQGV4YW1wbGUubG9jYWwifQ.aP11FQ.4kQFVOkCwYXIMOU_DJ1kuiEMUg0&quot;}, &quot;params&quot;: null, &quot;body&quot;: null}</pre></td><td><pre>{&quot;error&quot;:&quot;document not found&quot;}
+</pre></td></tr>
+<tr class='bad'><td>/api/get-watermarking-methods</td><td>GET</td><td>4</td><td>500:4</td><td><pre>{&quot;headers&quot;: {&quot;Authorization&quot;: &quot;Bearer eyJ1aWQiOjQ3MiwibG9naW4iOiJmdXp6ZXJfMTc2MTQ0MDgxNTM0MyIsImVtYWlsIjoiZnV6emVyQGV4YW1wbGUubG9jYWwifQ.aP11FQ.4kQFVOkCwYXIMOU_DJ1kuiEMUg0&quot;}, &quot;params&quot;: null, &quot;body&quot;: null}</pre></td><td><pre>&lt;!doctype html&gt;
+&lt;html lang=en&gt;
+&lt;title&gt;500 Internal Server Error&lt;/title&gt;
+&lt;h1&gt;Internal Server Error&lt;/h1&gt;
+&lt;p&gt;The server encountered an internal error and was unable to complete your request. Either the server is overloaded or there is an error in the application.&lt;/p&gt;
+</pre></td></tr>
+<tr><td>/api/healthz</td><td>GET</td><td>4</td><td>404:4</td><td><pre>{&quot;headers&quot;: {&quot;Authorization&quot;: &quot;Bearer eyJ1aWQiOjQ3MiwibG9naW4iOiJmdXp6ZXJfMTc2MTQ0MDgxNTM0MyIsImVtYWlsIjoiZnV6emVyQGV4YW1wbGUubG9jYWwifQ.aP11FQ.4kQFVOkCwYXIMOU_DJ1kuiEMUg0&quot;}, &quot;params&quot;: null, &quot;body&quot;: null}</pre></td><td><pre>&lt;!doctype html&gt;
+&lt;html lang=en&gt;
+&lt;title&gt;404 Not Found&lt;/title&gt;
+&lt;h1&gt;Not Found&lt;/h1&gt;
+&lt;p&gt;The requested URL was not found on the server. If you entered the URL manually please check your spelling and try again.&lt;/p&gt;
+</pre></td></tr>
+<tr><td>/api/list-all-versions</td><td>GET</td><td>4</td><td>200:2, 401:2</td><td><pre>{&quot;headers&quot;: {&quot;Authorization&quot;: &quot;Bearer eyJ1aWQiOjQ3MiwibG9naW4iOiJmdXp6ZXJfMTc2MTQ0MDgxNTM0MyIsImVtYWlsIjoiZnV6emVyQGV4YW1wbGUubG9jYWwifQ.aP11FQ.4kQFVOkCwYXIMOU_DJ1kuiEMUg0&quot;}, &quot;params&quot;: null, &quot;body&quot;: null}</pre></td><td><pre>{&quot;versions&quot;:[]}
+</pre></td></tr>
+<tr><td>/api/list-documents</td><td>GET</td><td>4</td><td>200:2, 401:2</td><td><pre>{&quot;headers&quot;: {&quot;Authorization&quot;: &quot;Bearer eyJ1aWQiOjQ3MiwibG9naW4iOiJmdXp6ZXJfMTc2MTQ0MDgxNTM0MyIsImVtYWlsIjoiZnV6emVyQGV4YW1wbGUubG9jYWwifQ.aP11FQ.4kQFVOkCwYXIMOU_DJ1kuiEMUg0&quot;}, &quot;params&quot;: null, &quot;body&quot;: null}</pre></td><td><pre>{&quot;documents&quot;:[{&quot;creation&quot;:&quot;2025-10-26T01:10:45.822772&quot;,&quot;id&quot;:631,&quot;name&quot;:&quot;test_fuzz&quot;,&quot;sha256&quot;:&quot;24F76CAEAEC92D7C0D1D8F1F97E9925226E1C7F6C4AE08FF2DF97FC3756A8D8B&quot;,&quot;size&quot;:34156},{&quot;creation&quot;:&quot;2025-10-26T01:10:45.753071&quot;,&quot;id&quot;:630,&quot;name&quot;:&quot;test&quot;,&quot;sha256&quot;:&quot;24F76CAEAEC92D7C0D1D8F1F97E9925226E1C7F6C4AE08FF2DF97FC3756A8D8B&quot;,&quot;size&quot;:34156},{&quot;creation&quot;:&quot;2025-10-26T01:10:45.114197&quot;,&quot;id&quot;:629,&quot;name&quot;:&quot;test&quot;,&quot;sha256&quot;:&quot;24F76CAEAEC92D7C0D1D8F1F97E9925226E1C7F6C4AE08FF2DF97FC3756A8D8B&quot;,&quot;size&quot;:34156},{&quot;creation&quot;:&quot;2025-10-26T01:10:28.426527&quot;,&quot;id&quot;:628,&quot;name&quot;:&quot;test_fuzz&quot;,&quot;sha256&quot;:&quot;24F76CAEAEC92D7C0D1D8F1F97E9925226E1C7F6C4AE08FF2DF97FC3756A8D8B&quot;,&quot;size&quot;:34156},{&quot;creation&quot;:&quot;2025-10-26T01:10:28.354991&quot;,&quot;id&quot;:627,&quot;name&quot;:&quot;test&quot;,&quot;sha256&quot;:&quot;24F76CAEAEC92D7C0D1D8F1F97E9925226E1C7F6C4AE08FF2DF97FC3756A8D8B&quot;,&quot;size&quot;:34156}]}
+</pre></td></tr>
+<tr><td>/api/list-versions</td><td>GET</td><td>4</td><td>200:2, 401:2</td><td><pre>{&quot;headers&quot;: {&quot;Authorization&quot;: &quot;Bearer eyJ1aWQiOjQ3MiwibG9naW4iOiJmdXp6ZXJfMTc2MTQ0MDgxNTM0MyIsImVtYWlsIjoiZnV6emVyQGV4YW1wbGUubG9jYWwifQ.aP11FQ.4kQFVOkCwYXIMOU_DJ1kuiEMUg0&quot;}, &quot;params&quot;: {&quot;documentid&quot;: 629}, &quot;body&quot;: null}</pre></td><td><pre>{&quot;versions&quot;:[]}
+</pre></td></tr>
+<tr><td>/api/list-versions/{document_id}</td><td>GET</td><td>4</td><td>200:2, 401:2</td><td><pre>{&quot;headers&quot;: {&quot;Authorization&quot;: &quot;Bearer eyJ1aWQiOjQ3MiwibG9naW4iOiJmdXp6ZXJfMTc2MTQ0MDgxNTM0MyIsImVtYWlsIjoiZnV6emVyQGV4YW1wbGUubG9jYWwifQ.aP11FQ.4kQFVOkCwYXIMOU_DJ1kuiEMUg0&quot;}, &quot;params&quot;: null, &quot;body&quot;: null}</pre></td><td><pre>{&quot;versions&quot;:[]}
+</pre></td></tr>
+<tr><td>/api/login</td><td>POST</td><td>4</td><td>400:4</td><td><pre>{&quot;headers&quot;: {&quot;Authorization&quot;: &quot;Bearer eyJ1aWQiOjQ3MiwibG9naW4iOiJmdXp6ZXJfMTc2MTQ0MDgxNTM0MyIsImVtYWlsIjoiZnV6emVyQGV4YW1wbGUubG9jYWwifQ.aP11FQ.4kQFVOkCwYXIMOU_DJ1kuiEMUg0&quot;}, &quot;params&quot;: null, &quot;body&quot;: null}</pre></td><td><pre>{&quot;error&quot;:&quot;email and password are required&quot;}
+</pre></td></tr>
+<tr><td>/api/read-watermark</td><td>POST</td><td>4</td><td>404:2, 401:2</td><td><pre>{&quot;headers&quot;: {&quot;Authorization&quot;: &quot;Bearer eyJ1aWQiOjQ3MiwibG9naW4iOiJmdXp6ZXJfMTc2MTQ0MDgxNTM0MyIsImVtYWlsIjoiZnV6emVyQGV4YW1wbGUubG9jYWwifQ.aP11FQ.4kQFVOkCwYXIMOU_DJ1kuiEMUg0&quot;}, &quot;params&quot;: null, &quot;body&quot;: {&quot;method&quot;: &quot;simple&quot;, &quot;position&quot;: &quot;center&quot;, &quot;key&quot;: &quot;k&quot;, &quot;id&quot;: 629}}</pre></td><td><pre>{&quot;error&quot;:&quot;document not found&quot;}
+</pre></td></tr>
+<tr><td>/api/read-watermark/{document_id}</td><td>POST</td><td>4</td><td>404:2, 401:2</td><td><pre>{&quot;headers&quot;: {&quot;Authorization&quot;: &quot;Bearer eyJ1aWQiOjQ3MiwibG9naW4iOiJmdXp6ZXJfMTc2MTQ0MDgxNTM0MyIsImVtYWlsIjoiZnV6emVyQGV4YW1wbGUubG9jYWwifQ.aP11FQ.4kQFVOkCwYXIMOU_DJ1kuiEMUg0&quot;}, &quot;params&quot;: null, &quot;body&quot;: {&quot;method&quot;: &quot;simple&quot;, &quot;position&quot;: &quot;center&quot;, &quot;key&quot;: &quot;k&quot;, &quot;id&quot;: 629}}</pre></td><td><pre>{&quot;error&quot;:&quot;document not found&quot;}
+</pre></td></tr>
+<tr><td>/api/rmap-get-link</td><td>POST</td><td>4</td><td>400:4</td><td><pre>{&quot;headers&quot;: {&quot;Authorization&quot;: &quot;Bearer eyJ1aWQiOjQ3MiwibG9naW4iOiJmdXp6ZXJfMTc2MTQ0MDgxNTM0MyIsImVtYWlsIjoiZnV6emVyQGV4YW1wbGUubG9jYWwifQ.aP11FQ.4kQFVOkCwYXIMOU_DJ1kuiEMUg0&quot;}, &quot;params&quot;: null, &quot;body&quot;: {&quot;payload&quot;: &quot;VGhpcyBpcyBhIHRlc3Q=&quot;}}</pre></td><td><pre>{&quot;error&quot;:&quot;Payload is not a valid OpenPGP message: Expected: ASCII-armored PGP data&quot;}
+</pre></td></tr>
+<tr><td>/api/rmap-initiate</td><td>POST</td><td>4</td><td>400:4</td><td><pre>{&quot;headers&quot;: {&quot;Authorization&quot;: &quot;Bearer eyJ1aWQiOjQ3MiwibG9naW4iOiJmdXp6ZXJfMTc2MTQ0MDgxNTM0MyIsImVtYWlsIjoiZnV6emVyQGV4YW1wbGUubG9jYWwifQ.aP11FQ.4kQFVOkCwYXIMOU_DJ1kuiEMUg0&quot;}, &quot;params&quot;: null, &quot;body&quot;: {&quot;payload&quot;: &quot;VGhpcyBpcyBhIHRlc3Q=&quot;}}</pre></td><td><pre>{&quot;error&quot;:&quot;Payload is not a valid OpenPGP message: Expected: ASCII-armored PGP data&quot;}
+</pre></td></tr>
+<tr><td>/api/upload-document</td><td>POST</td><td>4</td><td>201:2, 401:2</td><td><pre>{&quot;headers&quot;: {&quot;Authorization&quot;: &quot;Bearer eyJ1aWQiOjQ3MiwibG9naW4iOiJmdXp6ZXJfMTc2MTQ0MDgxNTM0MyIsImVtYWlsIjoiZnV6emVyQGV4YW1wbGUubG9jYWwifQ.aP11FQ.4kQFVOkCwYXIMOU_DJ1kuiEMUg0&quot;}, &quot;params&quot;: null, &quot;body&quot;: null}</pre></td><td><pre>{&quot;creation&quot;:&quot;2025-10-26T01:10:45.753071&quot;,&quot;id&quot;:630,&quot;name&quot;:&quot;test&quot;,&quot;sha256&quot;:&quot;24F76CAEAEC92D7C0D1D8F1F97E9925226E1C7F6C4AE08FF2DF97FC3756A8D8B&quot;,&quot;size&quot;:34156}
+</pre></td></tr>
+<tr><td>/healthz</td><td>GET</td><td>4</td><td>200:4</td><td><pre>{&quot;headers&quot;: {&quot;Authorization&quot;: &quot;Bearer eyJ1aWQiOjQ3MiwibG9naW4iOiJmdXp6ZXJfMTc2MTQ0MDgxNTM0MyIsImVtYWlsIjoiZnV6emVyQGV4YW1wbGUubG9jYWwifQ.aP11FQ.4kQFVOkCwYXIMOU_DJ1kuiEMUg0&quot;}, &quot;params&quot;: null, &quot;body&quot;: null}</pre></td><td><pre>{&quot;db_connected&quot;:true,&quot;message&quot;:&quot;The server is up and running.&quot;}
+</pre></td></tr>
+</table></body></html>
