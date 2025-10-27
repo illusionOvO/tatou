@@ -52,9 +52,17 @@ jobs:
           pytest --version
           python -m mutmut --version
 
+
+
+
       - name: Prepare test directories
         run: |
+          mkdir -p server/keys/clients
           mkdir -p keys/clients
+
+
+
+
 
       - name: Run baseline tests
         env:
