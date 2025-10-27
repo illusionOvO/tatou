@@ -1,24 +1,13 @@
 name: Mutation Testing
 
 on:
-  pull_request:
-    branches: [ main, master ]
   push:
     branches: [ main, master ]
-  schedule:
-    - cron: "0 3 * * *"
+  pull_request:
+    branches: [ main, master ]
   workflow_dispatch:
-    inputs:
-      mutate_paths:
-        description: "Comma-separated paths to mutate (override default)"
-        required: false
-      test_runner:
-        description: "Custom pytest runner for mutmut"
-        required: false
-      full:
-        description: "Run FULL mutation (true/false)"
-        required: false
-        default: "false"
+  schedule:
+    - cron: "0 3 * * *"  # 每天凌晨3点自动跑一次全量
 
 concurrency:
   group: mutation-${{ github.ref }}
@@ -35,7 +24,6 @@ jobs:
   mutation:
     runs-on: ubuntu-latest
     strategy:
-      fail-fast: false
       matrix:
         python-version: ["3.11"]
 
@@ -43,7 +31,7 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Set up Python ${{ matrix.python-version }}
+      - name: Set up Python
         uses: actions/setup-python@v5
         with:
           python-version: ${{ matrix.python-version }}
@@ -58,59 +46,30 @@ jobs:
           fi
           pip install pytest mutmut
 
-      - name: Show Python & tool versions
+      - name: Show versions
         run: |
           python --version
           pytest --version
-          python -m mutmut --help > /dev/null
-
-      - name: Decide run mode and parameters
-        id: params
-        run: |
-          if [ "${{ github.event_name }}" = "schedule" ]; then
-            FULL=true
-          elif [ "${{ github.event_name }}" = "workflow_dispatch" ] && [ "${{ github.event.inputs.full }}" = "true" ]; then
-            FULL=true
-          else
-            FULL=false
-          fi
-
-          MUTATE_PATHS="${{ github.event.inputs.mutate_paths }}"
-          TEST_RUNNER="${{ github.event.inputs.test_runner }}"
-
-          if [ -z "$MUTATE_PATHS" ]; then
-            MUTATE_PATHS="${DEFAULT_MUTATE_PATHS}"
-          fi
-
-          if [ -z "$TEST_RUNNER" ]; then
-            if [ "$FULL" = "true" ]; then
-              TEST_RUNNER="${DEFAULT_TEST_RUNNER_FULL}"
-            else
-              TEST_RUNNER="${DEFAULT_TEST_RUNNER_QUICK}"
-            fi
-          fi
-
-          echo "full=$FULL" >> $GITHUB_OUTPUT
-          echo "paths=$MUTATE_PATHS" >> $GITHUB_OUTPUT
-          echo "runner=$TEST_RUNNER" >> $GITHUB_OUTPUT
+          python -m mutmut --version
 
       - name: Run baseline tests
+        env:
+          PYTHONPATH: ${{ github.workspace }}
         working-directory: server
         run: |
           pytest -q
 
       - name: Run mutation tests
+        env:
+          PYTHONPATH: ${{ github.workspace }}
         run: |
-          python mutation_runner.py \
-            --paths "${{ steps.params.outputs.paths }}" \
-            --runner "${{ steps.params.outputs.runner }}" \
-            --timeout $( [ "${{ steps.params.outputs.full }}" = "true" ] && echo 60 || echo 30 )
+          python mutation_runner.py --paths server/src/ --tests server/test --timeout 60
 
-      - name: Upload mutation reports
+      - name: Upload mutation report
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: mutmut-results-${{ matrix.python-version }}
+          name: mutmut-results
           path: |
             reports/
             mutmut.toml

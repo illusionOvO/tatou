@@ -6,7 +6,7 @@ tests_dir = "server/tests"
 runner = "pytest -q"
 timeout = 30
 backup = true
-excluded_paths = ['tatou/migrations/', 'tatou/third_party/']
+
 
 #server/
 

@@ -1,115 +1,74 @@
-#!/usr/bin/env python3
-# -*- coding: utf-8 -*-
-"""
-Mutation Testing one-shot runner for Tatou project.
-- Creates mutmut.toml if missing
-- Runs baseline pytest
-- Runs mutmut and stores results
-- Works on Windows/macOS/Linux
-"""
-import argparse
 import os
 import sys
 import subprocess
 from pathlib import Path
-from textwrap import dedent
+import argparse
+import time
 
-def run_cmd(cmd, **kw):
-    print(f"\n$ {' '.join(cmd)}")
-    return subprocess.run(cmd, check=False, text=True, **kw)
+def run_command(cmd, cwd=None):
+    """执行命令并实时输出"""
+    print(f"\n[RUN] {cmd}")
+    process = subprocess.Popen(
+        cmd, shell=True, cwd=cwd,
+        stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True
+    )
+    for line in process.stdout:
+        print(line.strip())
+    process.wait()
+    return process.returncode
 
-def ensure_installed(pkgs):
-    # Try to install missing packages via pip in current interpreter
-    for pkg in pkgs:
-        print(f"[*] Ensuring package installed: {pkg}")
-        r = run_cmd([sys.executable, "-m", "pip", "show", pkg], capture_output=True)
-        if r.returncode != 0:
-            print(f"[+] Installing {pkg} ...")
-            ir = run_cmd([sys.executable, "-m", "pip", "install", pkg])
-            if ir.returncode != 0:
-                print(f"[!] Failed to install {pkg}. Please install it manually.")
-                sys.exit(ir.returncode)
-
-def write_mutmut_toml_if_missing(paths_to_mutate, tests_dir, timeout, excluded):
-    cfg = Path("mutmut.toml")
-    if cfg.exists():
-        print("[*] mutmut.toml already exists. Skipping creation.")
+def write_mutmut_toml():
+    """如果不存在 mutmut.toml 就自动生成"""
+    path = Path("mutmut.toml")
+    if path.exists():
+        print("[INFO] 已检测到 mutmut.toml，跳过生成。")
         return
-    content = dedent(f"""
-    [mutmut]
-    paths_to_mutate = {paths_to_mutate!r}
-    tests_dir = "{tests_dir}"
-    runner = "pytest -q"
-    timeout = {timeout}
-    backup = true
-    excluded_paths = {excluded!r}
-    """).strip() + "\n"
-    cfg.write_text(content, encoding="utf-8")
-    print("[+] Wrote mutmut.toml")
+    content = """[mutmut]
+paths_to_mutate = ['src/']
+tests_dir = "test"
+runner = "pytest -q"
+timeout = 30
+"""
+    path.write_text(content, encoding="utf-8")
+    print("[INFO] 已生成默认 mutmut.toml ✅")
 
 def main():
-    parser = argparse.ArgumentParser(description="One-shot Mutation Testing runner")
-    parser.add_argument("--paths", default="tatou/", help="Path(s) to mutate, comma-separated (default: tatou/)")
-    parser.add_argument("--tests", default="tests", help="Tests directory (default: tests)")
-    parser.add_argument("--timeout", type=int, default=30, help="Per-test timeout seconds (default: 30)")
-    parser.add_argument("--exclude", default="tatou/migrations/,tatou/third_party/", help="Excluded paths, comma-separated")
-    parser.add_argument("--skip-install", action="store_true", help="Skip pip installs")
-    parser.add_argument("--skip-baseline", action="store_true", help="Skip baseline pytest")
-    parser.add_argument("--apply", type=int, default=None, help="Apply a specific mutant id (for local repro)")
-    parser.add_argument("--runner", default="pytest -q", help="Custom test runner command for mutmut (default: pytest -q)")
+    parser = argparse.ArgumentParser(description="Mutation testing runner for Tatou project")
+    parser.add_argument("--paths", default="server/src/", help="Paths to mutate")
+    parser.add_argument("--tests", default="server/test", help="Tests directory")
+    parser.add_argument("--timeout", type=int, default=30, help="Timeout for test run")
+    parser.add_argument("--runner", default="pytest -q", help="Pytest command")
     args = parser.parse_args()
 
+    # 自动切换到 server 目录
     server_dir = Path("server")
-    if server_dir.exists() and server_dir.is_dir():
+    if server_dir.exists():
         os.chdir(server_dir)
-        print("[INFO] Changed working directory to 'server/'")
+        print(f"[INFO] 已切换到目录: {Path.cwd()}")
 
-    project_root = Path.cwd()
-    reports_dir = project_root / "reports"
-    reports_dir.mkdir(exist_ok=True)
+    write_mutmut_toml()
 
-    paths_to_mutate = [p.strip() for p in args.paths.split(",") if p.strip()]
-    excluded_paths = [p.strip() for p in args.exclude.split(",") if p.strip()]
+    # baseline 测试
+    print("\n[STEP 1] 运行 baseline 测试")
+    start = time.time()
+    code = run_command(f"{args.runner} {args.tests}")
+    if code != 0:
+        print("[ERROR] baseline 测试未通过，停止 mutation。")
+        sys.exit(1)
+    print(f"[INFO] baseline 测试完成，用时 {time.time()-start:.2f}s ✅")
 
-    # 0) Ensure deps
-    if not args.skip_install:
-        ensure_installed(["pytest", "mutmut"])
+    # mutation 测试
+    print("\n[STEP 2] 运行 mutation 测试")
+    start = time.time()
+    run_command(f"{sys.executable} -m mutmut run")
+    print(f"[INFO] Mutation 测试完成，用时 {time.time()-start:.2f}s ✅")
 
-    # 1) Config
-    write_mutmut_toml_if_missing(paths_to_mutate, args.tests, args.timeout, excluded_paths)
-
-    # 2) Optional: apply a mutant (debug)
-    if args.apply is not None:
-        print(f"[!] Applying mutant id {args.apply} for local repro (remember to revert with git).")
-        rc = run_cmd(["mutmut", "apply", str(args.apply)]).returncode
-        sys.exit(rc)
-
-    # 3) Baseline pytest
-    if not args.skip_baseline:
-        print("\n=== Running baseline tests (pytest) ===")
-        rc = run_cmd(["pytest", "-q"]).returncode
-        if rc != 0:
-            print("[!] Baseline tests failed. Fix tests before mutation testing.")
-            sys.exit(rc)
-
-    # 4) Run mutmut
-    print("\n=== Running mutation tests (mutmut) ===")
-    # Prefer passing runner explicitly to allow user override
-    run_cmd(["mutmut", "run", "--runner", args.runner])
-
-    # 5) Results
-    print("\n=== Mutation results ===")
-    res = run_cmd(["mutmut", "results"], capture_output=True)
-    sys.stdout.write(res.stdout)
-    (reports_dir / "mutmut_results.txt").write_text(res.stdout, encoding="utf-8")
-    print(f"\n[+] Saved summary to {reports_dir/'mutmut_results.txt'}")
-
-    # 6) Optional: list survivors with hints
-    print("\nTip: Show a specific mutant diff with:")
-    print("  mutmut show <id>")
-    print("Then write/strengthen a test to kill it, and re-run this script.")
+    print("\n[RESULT] Mutation 测试结果：")
+    run_command(f"{sys.executable} -m mutmut results")
 
 if __name__ == "__main__":
-    # Windows friendliness: stable hashing avoids some flaky tests
-    os.environ.setdefault("PYTHONHASHSEED", "0")
-    main()
+    try:
+        main()
+    except Exception as e:
+        print(f"[FATAL] 出错: {e}")
+        sys.exit(1)
