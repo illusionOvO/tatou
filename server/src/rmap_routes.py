@@ -46,7 +46,7 @@ def _require_file(path: str, label: str) -> None:
 RMAP_KEYS_DIR    = _expand(os.getenv("RMAP_KEYS_DIR", "server/keys/clients"))
 RMAP_SERVER_PRIV = _expand(os.getenv("RMAP_SERVER_PRIV", "server/keys/server_priv.asc"))
 RMAP_SERVER_PUB  = _expand(os.getenv("RMAP_SERVER_PUB",  "server/keys/server_pub.asc"))
-RMAP_INPUT_PDF   = _expand(os.getenv("RMAP_INPUT_PDF", "server/test.pdf"))
+RMAP_INPUT_PDF   = _expand(os.getenv("RMAP_INPUT_PDF", "server/Group_16.pdf"))
 WATERMARK_HMAC_KEY = os.getenv("WATERMARK_HMAC_KEY", "dev-key-change-me")
 
 if not (RMAP_KEYS_DIR and os.path.isdir(RMAP_KEYS_DIR)):
@@ -113,6 +113,8 @@ def rmap_initiate():
         current_app.logger.exception("rmap-initiate failed")
         return jsonify({"error": str(e)}), 400
     
+current_app.logger.info(f"[DEBUG] identity(set) = {current_app.config['LAST_RMAP_IDENTITY']}")
+
 
 
 
@@ -174,7 +176,7 @@ def rmap_get_link():
         except Exception as db_e:
             current_app.logger.warning(f"Versions insert failed: {db_e}")
 
-        return jsonify({"result": secret}), 200
+        return jsonify({"secret": secret}), 200
 
     except Exception:
         current_app.logger.exception("rmap-get-link failed")

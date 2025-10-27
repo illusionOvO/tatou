@@ -18,7 +18,7 @@ services:
       RMAP_KEYS_DIR: /app/server/keys/clients
       RMAP_SERVER_PUB: /app/server/keys/server_pub.asc
       RMAP_SERVER_PRIV: /app/server/keys/server_priv.asc
-      RMAP_INPUT_PDF: /app/test.pdf
+      RMAP_INPUT_PDF: /app/Group_16.pdf
       STORAGE_DIR: /app/storage
       WATERMARK_HMAC_KEY: ${WATERMARK_HMAC_KEY}
 
