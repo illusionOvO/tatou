@@ -103,6 +103,7 @@ def rmap_initiate():
         incoming = request.get_json(force=True) or {}
 
         current_app.config["LAST_RMAP_IDENTITY"] = _guess_identity(incoming)
+        current_app.logger.info(f"[RMAP] Received identity: {incoming.get('identity')}")
 
         result = rmap.handle_message1(incoming)
         if "error" in result:
