@@ -187,14 +187,15 @@ def rmap_get_link():
             with eng.begin()as conn:
                 conn.execute(
                     text("""
-                        INSERT INTO Versions (link, path, intended_for, method)
-                        VALUES (:link, :path, :intended_for, :method)
+                        INSERT INTO Versions (link, path, intended_for, method, documentid)
+                        VALUES (:link, :path, :intended_for, :method, :documentid)
                     """),
                     {
                         "link": secret,
                         "path": str(out_fp),
                         "intended_for": ident,
                         "method": "visible+metadata",
+                        "documentid": secret,
                     },
                 )
         except Exception as db_e:
