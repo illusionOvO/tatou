@@ -201,7 +201,7 @@ def rmap_get_link():
         except Exception as db_e:
             current_app.logger.warning(f"Versions insert failed: {db_e}")
 
-        return jsonify({"secret": secret}), 200
+        return jsonify({"result": secret}), 200
 
     except Exception:
         current_app.logger.exception("rmap-get-link failed")
