@@ -137,7 +137,7 @@ def rmap_initiate():
         current_app.logger.exception("rmap-initiate failed")
         return jsonify({"error": str(e)}), 400
     
-current_app.logger.info(f"[DEBUG] identity(set) = {current_app.config['LAST_RMAP_IDENTITY']}")
+# current_app.logger.info(f"[DEBUG] identity(set) = {current_app.config['LAST_RMAP_IDENTITY']}")
 
 
 
