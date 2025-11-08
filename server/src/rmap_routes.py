@@ -102,12 +102,35 @@ def rmap_initiate():
     try:
         incoming = request.get_json(force=True) or {}
 
-        current_app.config["LAST_RMAP_IDENTITY"] = _guess_identity(incoming)
-        current_app.logger.info(f"[RMAP] Received identity: {incoming.get('identity')}")
+        # 1) 收到的 identity
+        raw_identity = incoming.get("identity")
+        current_app.logger.info(f"[RMAP] Received identity in payload: {raw_identity}")
 
+        # 2) 猜到 / 决定使用的 identity（_guess_identity 里有 fallback）
+        guessed_identity = _guess_identity(incoming)
+        current_app.config["LAST_RMAP_IDENTITY"] = guessed_identity
+        current_app.logger.info(f"[RMAP] Guessed identity: {guessed_identity}")
+
+        # 3) 准备用哪个 key 文件（不假设一定存在）
+        keys_dir = CLIENT_KEYS_DIR  # 你前面定义过的 Path(...)
+        key_path = keys_dir / f"{guessed_identity}.asc"
+        current_app.logger.info(
+            f"[RMAP] Using RMAP_KEYS_DIR={keys_dir}, "
+            f"expecting key file: {key_path}, exists={key_path.exists()}"
+        )
+
+        # 4) 调用 RMAP 库实际生成响应，并记录返回结构
         result = rmap.handle_message1(incoming)
+        current_app.logger.info(
+            f"[RMAP] handle_message1 type={type(result)}, keys={list(result.keys())}"
+        )
+
+
         if "error" in result:
+            current_app.logger.error(f"[RMAP] handle_message1 error: {result}")
             return jsonify(result), 400
+        
+        
         return jsonify(result), 200
     
     except Exception as e:
