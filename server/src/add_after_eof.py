@@ -20,7 +20,10 @@ CONTEXT = b"wm:trailer:v1:"
 class AddAfterEOF:
     # 与后端注册的名字保持一致
     name = "trailer-hmac"
-
+    @staticmethod
+    def get_usage() -> str:
+        return "Appends a base64-encoded, HMAC-signed JSON payload after the %%EOF marker."
+        
     def _build_payload(self, secret: str, key: str) -> str:
         sb = secret.encode("utf-8")
         mac = hmac.new(key.encode("utf-8"), CONTEXT + sb, hashlib.sha256).hexdigest()
@@ -30,27 +33,6 @@ class AddAfterEOF:
             json.dumps(obj, separators=(",", ":")).encode("utf-8")
         ).decode("ascii")
 
-    # 关键点1：接受关键字 pdf；其余冗余参数用 **kwargs 吃掉，避免报 unexpected kw
-    # # 关键点2：统一用 load_pdf_bytes 解析各种输入
-    # def add_watermark(
-    #     self, *, pdf, secret: str, key: str, position: Optional[str] = None, **kwargs
-    # ) -> bytes:
-    #     data = load_pdf_bytes(pdf)
-    #     if not is_pdf_bytes(data):
-    #         raise ValueError("Not a PDF")
-
-    #     # 仅接受 eof（与 is_watermark_applicable 一致）
-    #     if position is not None and position.lower() != "eof":
-    #         raise ValueError("position must be 'eof' for trailer-hmac")
-
-    #     # 可选：确保 EOF 后有换行，更稳
-    #     if not data.endswith(b"\n") and not data.endswith(b"\r"):
-    #         data += b"\n"
-
-    #     payload_b64 = self._build_payload(secret, key).encode("ascii")
-    #     marker_start = b"%%CUSTOM-WM-START\n"
-    #     marker_end = b"\n%%CUSTOM-WM-END\n"
-    #     return data + marker_start + payload_b64 + marker_end
 
     def add_watermark(self, *args, **kwargs) -> bytes:
         # 位置参数解析
@@ -89,37 +71,7 @@ class AddAfterEOF:
         marker_end = b"\n%%CUSTOM-WM-END\n"
         return data + marker_start + payload_b64 + marker_end
 
-
-    # 同理：read_secret 也接受关键字 pdf，并吞掉多余关键字
-    # def read_secret(self, *, pdf, key: str, **kwargs) -> str:
-    # def read_secret(self, *, pdf=None, pdf_bytes=None, key: str, **kwargs) -> str:
-    #     # data = load_pdf_bytes(pdf)
-    #     data = pdf_bytes if pdf_bytes is not None else load_pdf_bytes(pdf)
-    #     if not is_pdf_bytes(data):
-    #         raise ValueError("Not a PDF")
-
-    #     idx = data.rfind(b"%%CUSTOM-WM-START")
-    #     if idx < 0:
-    #         raise ValueError("Trailer watermark not found")
-    #     start = data.find(b"\n", idx) + 1
-    #     end = data.find(b"\n%%CUSTOM-WM-END", start)
-    #     if end < 0:
-    #         raise ValueError("Trailer end marker missing")
-
-    #     payload_b64 = data[start:end].strip()
-    #     try:
-    #         decoded = base64.b64decode(payload_b64)
-    #         obj = json.loads(decoded.decode("utf-8"))
-    #     except Exception:
-    #         raise ValueError("Invalid trailer payload")
-
-    #     mac_expected = obj["mac"]
-    #     secret_b = base64.b64decode(obj["secret"].encode("ascii"))
-    #     mac_calc = hmac.new(key.encode("utf-8"), CONTEXT + secret_b, hashlib.sha256).hexdigest()
-    #     if not hmac.compare_digest(mac_calc, mac_expected):
-    #         raise ValueError("Trailer MAC mismatch")
-    #     return secret_b.decode("utf-8")
-    
+ 
     def read_secret(self, *args, **kwargs) -> str:
         pdf = key = None
         if args:
