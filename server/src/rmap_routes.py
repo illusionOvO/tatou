@@ -102,17 +102,43 @@ def rmap_initiate():
     try:
         incoming = request.get_json(force=True) or {}
 
-        current_app.config["LAST_RMAP_IDENTITY"] = _guess_identity(incoming)
+        # 1) 收到的 identity
+        raw_identity = incoming.get("identity")
+        current_app.logger.info(f"[RMAP] Received identity in payload: {raw_identity}")
 
+        # 2) 猜到 / 决定使用的 identity（_guess_identity 里有 fallback）
+        guessed_identity = _guess_identity(incoming)
+        current_app.config["LAST_RMAP_IDENTITY"] = guessed_identity
+        current_app.logger.info(f"[RMAP] Guessed identity: {guessed_identity}")
+
+        # 3) 准备用哪个 key 文件（不假设一定存在）
+        keys_dir = CLIENT_KEYS_DIR  # 你前面定义过的 Path(...)
+        key_path = keys_dir / f"{guessed_identity}.asc"
+        current_app.logger.info(
+            f"[RMAP] Using RMAP_KEYS_DIR={keys_dir}, "
+            f"expecting key file: {key_path}, exists={key_path.exists()}"
+        )
+
+        # 4) 调用 RMAP 库实际生成响应，并记录返回结构
         result = rmap.handle_message1(incoming)
+        current_app.logger.info(
+            f"[RMAP] handle_message1 type={type(result)}, keys={list(result.keys())}"
+        )
+
+
         if "error" in result:
+            current_app.logger.error(f"[RMAP] handle_message1 error: {result}")
             return jsonify(result), 400
+        
+        
         return jsonify(result), 200
     
     except Exception as e:
         current_app.logger.exception("rmap-initiate failed")
         return jsonify({"error": str(e)}), 400
     
+# current_app.logger.info(f"[DEBUG] identity(set) = {current_app.config['LAST_RMAP_IDENTITY']}")
+
 
 
 
@@ -161,14 +187,15 @@ def rmap_get_link():
             with eng.begin()as conn:
                 conn.execute(
                     text("""
-                        INSERT INTO Versions (link, path, intended_for, method)
-                        VALUES (:link, :path, :intended_for, :method)
+                        INSERT INTO Versions (link, path, intended_for, method, documentid)
+                        VALUES (:link, :path, :intended_for, :method, :documentid)
                     """),
                     {
                         "link": secret,
                         "path": str(out_fp),
                         "intended_for": ident,
                         "method": "visible+metadata",
+                        "documentid": secret,
                     },
                 )
         except Exception as db_e:
@@ -179,3 +206,13 @@ def rmap_get_link():
     except Exception:
         current_app.logger.exception("rmap-get-link failed")
         return jsonify({"error": "rmap-get-link failed"}), 400
+    
+
+#download PDF
+@bp.get("/get-version/<secret>")
+def get_version(secret):
+    from flask import send_file
+    pdf_path = Path("/app/storage/watermarks") / f"{secret}.pdf"
+    if not pdf_path.exists():
+        return jsonify({"error": "document not found"}), 404
+    return send_file(pdf_path, mimetype="application/pdf")

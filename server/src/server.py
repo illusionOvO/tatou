@@ -134,8 +134,8 @@ def create_app():
     @app.post("/api/create-user")
     def create_user():
         payload = request.get_json(silent=True) or {}
-        email = (payload.get("email") or "").strip().lower()
-        login = (payload.get("login") or "").strip()
+        email = str(payload.get("email") or "").strip().lower()
+        login = str(payload.get("login") or "").strip()
         password = payload.get("password") or ""
         if not email or not login or not password:
             return jsonify({"error": "email, login, and password are required"}), 400
