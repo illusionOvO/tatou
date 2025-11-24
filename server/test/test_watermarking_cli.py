@@ -1,0 +1,110 @@
+import json
+import pytest
+from server.src import watermarking_cli as cli
+
+
+def run_cli(args):
+    """Run CLI inside same process, capturing stdout/stderr & exit code."""
+    from io import StringIO
+    import sys
+
+    real_out, real_err = sys.stdout, sys.stderr
+    fake_out, fake_err = StringIO(), StringIO()
+
+    sys.stdout = fake_out
+    sys.stderr = fake_err
+
+    try:
+        code = cli.main(args)
+    finally:
+        sys.stdout = real_out
+        sys.stderr = real_err
+
+    return code, fake_out.getvalue(), fake_err.getvalue()
+
+
+@pytest.fixture
+def sample_pdf(tmp_path):
+    pdf = tmp_path / "sample.pdf"
+    pdf.write_bytes(b"%PDF-1.4 test")
+    return pdf
+
+
+def test_cli_methods_lists_methods():
+    code, out, err = run_cli(["methods"])
+    assert code == 0
+
+    expected = ["trailer-hmac", "metadata-xmp", "visible-text-redundant"]
+    for m in expected:
+        assert m in out
+
+
+def test_cli_explore_outputs_json(tmp_path, sample_pdf):
+    out_file = tmp_path / "tree.json"
+    code, out, err = run_cli(["explore", str(sample_pdf), "--out", str(out_file)])
+
+    assert code == 0
+    assert out_file.exists()
+    tree = json.loads(out_file.read_text())
+    assert isinstance(tree, dict)
+
+
+def test_cli_embed_then_extract(tmp_path, sample_pdf):
+    out_pdf = tmp_path / "out.pdf"
+
+    # embed
+    code, out, err = run_cli([
+        "embed",
+        str(sample_pdf),
+        str(out_pdf),
+        "--method", "trailer-hmac",
+        "--secret", "HELLO",
+        "--key", "K123",
+    ])
+    assert code == 0
+    assert out_pdf.exists()
+
+    # extract
+    code, out, err = run_cli([
+        "extract",
+        str(out_pdf),
+        "--method", "trailer-hmac",
+        "--key", "K123"
+    ])
+    assert code == 0
+    assert out.strip() == "HELLO"
+
+
+def test_cli_embed_missing_input():
+    code, out, err = run_cli([
+        "embed",
+        "nope.pdf",
+        "out.pdf",
+        "--secret", "abc",
+        "--key", "xyz",
+    ])
+
+    assert code == 5  # FileNotFoundError
+
+
+def test_cli_extract_wrong_key(tmp_path, sample_pdf):
+    out_pdf = tmp_path / "out.pdf"
+
+    run_cli([
+        "embed",
+        str(sample_pdf),
+        str(out_pdf),
+        "--method", "trailer-hmac",
+        "--secret", "SECRET",
+        "--key", "RIGHT",
+    ])
+
+    code, out, err = run_cli([
+        "extract",
+        str(out_pdf),
+        "--method", "trailer-hmac",
+        "--key", "WRONG",
+    ])
+
+    assert code == 2
+    # assert "invalid" in err.lower()
