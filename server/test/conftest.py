@@ -43,20 +43,29 @@ def app():
             # --- 【关键修复：SQL 清理】 ---
             sql_script = SQL_INIT_PATH.read_text()
             
-            # --- 【关键修复：增强 SQL 清理，移除 MySQL 专用 DDL】 ---
+            # --- 【增强 SQL 清理：移除所有 MySQL 专用 DDL 语法】 ---
             cleaned_sql = (
                 sql_script
-                .replace("USE `tatou`;", "")                  # 1. 移除 USE
-                .replace("CREATE DATABASE", "-- CREATE DATABASE") # 2. 注释 CREATE DATABASE
-                .replace("DROP TABLE IF EXISTS", "DROP TABLE IF EXISTS") # 保持不变
-                .replace("DEFAULT CHARSET=utf8mb4", "")      # 3. 移除字符集/引擎
-                .replace("ENGINE=InnoDB", "")
+                # 移除所有会导致 SQLite 崩溃的 MySQL 语句/关键字
+                .replace("USE `tatou`;", "")                  
+                .replace("CREATE DATABASE", "-- CREATE DATABASE")
+                .replace("DEFAULT CHARSET=utf8mb4", "")       
                 .replace("COLLATE utf8mb4_0900_ai_ci", "")
-                .replace("UNSIGNED", "")                     # 4. 移除 UNSIGNED 关键字 (SQLite 不支持)
+                .replace("COLLATE utf8mb4_general_ci", "")
+                .replace("CHARACTER SET utf8mb4", "")        # 移除 CHARACTER SET
+                .replace("CHARACTER SET latin1", "")
+                .replace("UNSIGNED", "")                     # 移除 UNSIGNED 关键字
+                .replace("ON UPDATE CURRENT_TIMESTAMP", "")   # 移除 ON UPDATE
+                .replace("ON DELETE CASCADE", "")             # 移除 ON DELETE
+                .replace("ENGINE=InnoDB", "")
+                .replace("COLLATE", "")
+                .replace("AUTO_INCREMENT", "") # 移除 AUTO_INCREMENT (SQLite 使用 autoincrement)
+                # 确保路径分隔符兼容 Linux
+                .replace("\\n", "\n") 
             )
             # ----------------------------------------------------
             
-            # 逐条执行 SQL，解决 SQLite 无法一次执行多条语句的问题
+            # 逐条执行 SQL
             for statement in cleaned_sql.split(';'):
                 statement = statement.strip()
                 if statement:
