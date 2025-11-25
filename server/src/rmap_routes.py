@@ -40,6 +40,11 @@ def _require_file(path: str, label: str) -> None:
     if not os.path.isfile(path):
         raise FileNotFoundError(f"{label} not found at: {path}")
 
+# # ---------- test file ----------
+# def run_query(query: str, params=None):
+#     eng = _get_engine()
+#     with eng.connect() as conn:
+#         return conn.execute(text(query), params).first()
 
 
 # ---------- env ----------

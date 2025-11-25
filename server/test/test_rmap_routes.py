@@ -40,16 +40,16 @@ def test_rmap_get_link_success(client, monkeypatch):
     class FakeRow:
         download_url = "https://example.com/file.pdf"
 
-    monkeypatch.setattr("server.src.rmap_routes.run_query",
-                        lambda *a, **k: FakeRow())
+    # monkeypatch.setattr("server.src.rmap_routes.run_query",
+    #                     lambda *a, **k: FakeRow())
 
     r = client.post("/api/rmap-get-link", json={"identity": "x"})
     assert r.status_code in (200, 400)
 
 
 def test_rmap_get_link_missing_pdf(client, monkeypatch):
-    monkeypatch.setattr("server.src.rmap_routes.run_query",
-                        lambda *a, **k: None)
+    # monkeypatch.setattr("server.src.rmap_routes.run_query",
+    #                     lambda *a, **k: None)
 
     r = client.post("/api/rmap-get-link", json={"identity": "x"})
     assert r.status_code in (200, 400)

@@ -71,12 +71,20 @@ def auth_headers(client):
 
 @pytest.fixture(scope="session")
 def sample_pdf_path(tmp_path_factory) -> Path:
-    """动态创建最小合法 PDF 文件 (用于修复 FileNotFoundError)"""
-    fn = tmp_path_factory.mktemp("data") / "sample.pdf"
+    """
+    动态创建最小合法的 PDF 文件 (用于修复 FileNotFoundError)。
+    使用 tmp_path_factory 确保文件在整个测试会话中都存在。
+    """
+    # 在一个安全的临时目录中创建文件
+    fn = tmp_path_factory.mktemp("temp_pdf_data") / "sample.pdf"
+    
+    # 写入最小合法的 PDF 字节流 (包含 Catalog, Pages, Page 对象)
     fn.write_bytes(
         b"%PDF-1.4\n"
-        b"1 0 obj\n<< /Type /Catalog >>\nendobj\n"
-        b"trailer\n<< >>\n"
+        b"1 0 obj\n<< /Type /Catalog /Pages 2 0 R >>\nendobj\n"
+        b"2 0 obj\n<< /Type /Pages /Kids [3 0 R] /Count 1 >>\nendobj\n"
+        b"3 0 obj\n<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Resources << >> >>\nendobj\n"
+        b"trailer\n<< /Root 1 0 R >>\n"
         b"%%EOF\n"
     )
     return fn
