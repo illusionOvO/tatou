@@ -39,28 +39,28 @@ def app():
         # 调用 get_engine(app) 获取数据库引擎
         engine = get_engine(flask_app)
         with engine.begin() as conn:  # 使用 begin 开启事务并提交
-            
+
             # --- 【关键修复：SQL 清理】 ---
             sql_script = SQL_INIT_PATH.read_text()
             
-            # 移除所有 MySQL 特有的，会导致 SQLite 崩溃的语句
+            # --- 【关键修复：增强 SQL 清理，移除 MySQL 专用 DDL】 ---
             cleaned_sql = (
                 sql_script
-                .replace("USE `tatou`;", "")       # 移除 USE 语句
-                .replace("CREATE DATABASE", "-- CREATE DATABASE") # 注释掉 CREATE DATABASE
-                .replace("DROP TABLE IF EXISTS", "DROP TABLE IF EXISTS") # SQLite支持
-                # 如果你的 SQL 文件中包含 ENGINE=InnoDB 或 DEFAULT CHARSET=utf8mb4，
-                # 这些也需要移除或替换
+                .replace("USE `tatou`;", "")                  # 1. 移除 USE
+                .replace("CREATE DATABASE", "-- CREATE DATABASE") # 2. 注释 CREATE DATABASE
+                .replace("DROP TABLE IF EXISTS", "DROP TABLE IF EXISTS") # 保持不变
+                .replace("DEFAULT CHARSET=utf8mb4", "")      # 3. 移除字符集/引擎
+                .replace("ENGINE=InnoDB", "")
+                .replace("COLLATE utf8mb4_0900_ai_ci", "")
+                .replace("UNSIGNED", "")                     # 4. 移除 UNSIGNED 关键字 (SQLite 不支持)
             )
+            # ----------------------------------------------------
             
-            # 针对 SQL 的分号进行分割，确保 SQLite 能逐条执行
-            # 警告: 这是一个简单的分割，但如果 SQL 中有包含分号的字符串，可能出错。
+            # 逐条执行 SQL，解决 SQLite 无法一次执行多条语句的问题
             for statement in cleaned_sql.split(';'):
                 statement = statement.strip()
                 if statement:
                     conn.execute(text(statement))
-            
-            # ---------------------------
             
     return flask_app
 
