@@ -62,7 +62,13 @@ def _safe_resolve_under_storage(p: str | Path, storage_root: Path) -> Path:
 # ---------------------------------------------------------------------------
 
 # --- DB engine only (no Table metadata) ---
-def db_url() -> str:
+def db_url(app) -> str:
+
+    # 检查是否配置了通用的 SQLAlchemy URI (这是 pytest 设置的)
+    if 'SQLALCHEMY_DATABASE_URI' in app.config:
+        return app.config['SQLALCHEMY_DATABASE_URI']
+    
+    # 如果没有配置通用 URI (默认情况)，则退回到 MySQL 配置
     return (
         f"mysql+pymysql://{app.config['DB_USER']}:{app.config['DB_PASSWORD']}"
         f"@{app.config['DB_HOST']}:{app.config['DB_PORT']}/{app.config['DB_NAME']}?charset=utf8mb4"
@@ -71,7 +77,7 @@ def db_url() -> str:
 def get_engine(app):
     eng = app.config.get("_ENGINE")
     if eng is None:
-        eng = create_engine(db_url(), pool_pre_ping=True, future=True)
+        eng = create_engine(db_url(app), pool_pre_ping=True, future=True)
         app.config["_ENGINE"] = eng
     return eng
 
