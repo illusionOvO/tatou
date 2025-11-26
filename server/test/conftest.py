@@ -4,6 +4,7 @@ import uuid
 from pathlib import Path
 from sqlalchemy import text # 需要导入 text 来执行原始 SQL 语句
 import os
+import re
 
 # 确保项目根目录在 sys.path 中，以便正确导入 server.src
 ROOT_DIR = Path(__file__).resolve().parents[2]
@@ -23,7 +24,7 @@ def app():
     # 1. 强制使用内存数据库，防止连接外部 MySQL 失败
     flask_app.config.update({
         "TESTING": True,
-        "SQLALCHEMY_DATABASE_URI": "sqlite:///:memory:",  # 内存数据库
+        # "SQLALCHEMY_DATABASE_URI": "sqlite:///:memory:",  # 内存数据库
         "_ENGINE": None # 每次重置引擎
     })
     
@@ -43,45 +44,45 @@ def app():
             # --- 【关键修复：SQL 清理】 ---
             sql_script = SQL_INIT_PATH.read_text()
             
-            # --- 【增强 SQL 清理：移除所有 MySQL 专用 DDL 语法】 ---
-            cleaned_sql = (
-                sql_script
-                # 1. 消除所有 MySQL 独有关键字
-                .replace("USE `tatou`;", "")                  
-                .replace("CREATE DATABASE", "-- CREATE DATABASE")
-                .replace("DEFAULT CHARSET=utf8mb4", "")       
-                .replace("CHARACTER SET utf8mb4", "")        
-                .replace("CHARACTER SET latin1", "")
-                .replace("ENGINE=InnoDB", "")
-                .replace("COMMENT", "-- COMMENT")             
-                .replace("UNSIGNED", "")                     
-                .replace("ON UPDATE CURRENT_TIMESTAMP", "")   
-                .replace("ON DELETE CASCADE", "")             
-                .replace("DEFAULT NULL", "")                  
+            # # --- 【增强 SQL 清理：移除所有 MySQL 专用 DDL 语法】 ---
+            # cleaned_sql = (
+            #     sql_script
+            #     # 1. 消除所有 MySQL 独有关键字
+            #     .replace("USE `tatou`;", "")                  
+            #     .replace("CREATE DATABASE", "-- CREATE DATABASE")
+            #     .replace("DEFAULT CHARSET=utf8mb4", "")       
+            #     .replace("CHARACTER SET utf8mb4", "")        
+            #     .replace("CHARACTER SET latin1", "")
+            #     .replace("ENGINE=InnoDB", "")
+            #     .replace("COMMENT", "-- COMMENT")             
+            #     .replace("UNSIGNED", "")                     
+            #     .replace("ON UPDATE CURRENT_TIMESTAMP", "")   
+            #     .replace("ON DELETE CASCADE", "")             
+            #     .replace("DEFAULT NULL", "")                  
                 
-                # 2. 修正主键和列类型 (CRITICAL FIX for "near id: syntax error")
-                .replace("BIGINT NOT NULL", "INTEGER NOT NULL")
-                .replace("BIGINT", "INTEGER")
-                .replace("PRIMARY id,", "PRIMARY KEY,")
-                .replace("PRIMARY id", "PRIMARY KEY")
-                .replace("PRIMARY KEY", "PRIMARY KEY")        # 确保修正正确
-                .replace("AUTO_INCREMENT", "") 
+            #     # 2. 修正主键和列类型 (CRITICAL FIX for "near id: syntax error")
+            #     .replace("BIGINT NOT NULL", "INTEGER NOT NULL")
+            #     .replace("BIGINT", "INTEGER")
+            #     .replace("PRIMARY id,", "PRIMARY KEY,")
+            #     .replace("PRIMARY id", "PRIMARY KEY")
+            #     .replace("PRIMARY KEY", "PRIMARY KEY")        # 确保修正正确
+            #     .replace("AUTO_INCREMENT", "") 
                 
-                # 3. 清理日期函数和括号
-                .replace("DEFAULT CURRENT_TIMESTAMP", "DEFAULT NULL") 
-                .replace("DEFAULT (datetime('now'))", "DEFAULT NULL")
-                .replace("NOW()", "NULL")
-                .replace("(", "") 
-                .replace(")", "") 
-                .replace("`", "") 
-                .replace("KEY", "")                          
-                .replace("COLLATE", "")                      
-                .replace("\\n", "\n")
-            )
-            # ----------------------------------------------------
+            #     # 3. 清理日期函数和括号
+            #     .replace("DEFAULT CURRENT_TIMESTAMP", "DEFAULT NULL") 
+            #     .replace("DEFAULT (datetime('now'))", "DEFAULT NULL")
+            #     .replace("NOW()", "NULL")
+            #     .replace("(", "") 
+            #     .replace(")", "") 
+            #     .replace("`", "") 
+            #     .replace("KEY", "")                          
+            #     .replace("COLLATE", "")                      
+            #     .replace("\\n", "\n")
+            # )
+            # # ----------------------------------------------------
             
             # 逐条执行 SQL
-            for statement in cleaned_sql.split(';'):
+            for statement in sql_script.split(';'):
                 statement = statement.strip()
                 if statement:
                     conn.execute(text(statement))
