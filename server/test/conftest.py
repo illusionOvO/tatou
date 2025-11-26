@@ -54,17 +54,21 @@ def app():
                 .replace("CHARACTER SET latin1", "")
                 .replace("ENGINE=InnoDB", "")
                 .replace("COMMENT", "-- COMMENT")             
-                .replace("UNSIGNED", "")                     # 移除 UNSIGNED
-                .replace("ON UPDATE CURRENT_TIMESTAMP", "")   # 移除 ON UPDATE
+                .replace("UNSIGNED", "")                     
+                .replace("ON UPDATE CURRENT_TIMESTAMP", "")   
                 .replace("ON DELETE CASCADE", "")             
                 .replace("DEFAULT NULL", "")                  
-                .replace("DEFAULT CURRENT_TIMESTAMP", "DEFAULT (datetime('now'))") # 替换时间戳
-                .replace("NOW()", "datetime('now')")
+                
+                # 针对日期时间的最终修复：全部替换为 NULL，避免 SQLite 复杂的函数语法
+                .replace("DEFAULT CURRENT_TIMESTAMP", "DEFAULT NULL") 
+                .replace("DEFAULT (datetime('now'))", "DEFAULT NULL")
+                .replace("NOW()", "NULL")
+                
                 .replace("AUTO_INCREMENT", "") 
                 .replace("`", "")                            # 移除所有反引号
                 .replace("KEY", "")                          # 移除所有 KEY 关键字
                 
-                # 针对排序规则的最终清洗 (解决 near "utf8mb4_u...")
+                # 针对排序规则的最终清洗
                 .replace("utf8mb4_unicode_ci", "")
                 .replace("utf8mb4_general_ci", "")
                 .replace("utf8mb4_u", "")
@@ -118,9 +122,9 @@ def sample_pdf_path(tmp_path_factory) -> Path:
     # 写入最小合法的 PDF 字节流 (包含 Catalog, Pages, Page 对象)
     fn.write_bytes(
         b"%PDF-1.4\n"
-        b"1 0 obj\n<< /Type /Catalog /Pages 2 0 R >>\nendobj\n" # Catalog (入口)
-        b"2 0 obj\n<< /Type /Pages /Kids [3 0 R] /Count 1 >>\nendobj\n" # Pages (页面容器)
-        b"3 0 obj\n<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Resources << >> >>\nendobj\n" # Page (实际页面)
+        b"1 0 obj\n<< /Type /Catalog /Pages 2 0 R >>\nendobj\n" 
+        b"2 0 obj\n<< /Type /Pages /Kids [3 0 R] /Count 1 >>\nendobj\n"
+        b"3 0 obj\n<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Resources << >> >>\nendobj\n" 
         b"trailer\n<< /Root 1 0 R >>\n"
         b"startxref\n189\n%%EOF\n"
     )

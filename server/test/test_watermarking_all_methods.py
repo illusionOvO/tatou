@@ -169,17 +169,17 @@ CASES: list[tuple[str, object]] = [
 
 # --------- fixtures ----------
 
-# FIX: 使用动态夹具，解决 FileNotFoundError 问题
-@pytest.fixture(scope="session")
-def sample_pdf_path(tmp_path_factory) -> Path:
-    """Minimal but recognizable PDF bytes, generated dynamically in temp dir."""
-    pdf = tmp_path_factory.mktemp("pdfs") / "sample.pdf"
-    pdf.write_bytes(
-        b"%PDF-1.4\n"
-        b"1 0 obj\n<< /Type /Catalog >>\nendobj\n"
-        b"%%EOF\n"
-    )
-    return pdf
+# # FIX: 使用动态夹具，解决 FileNotFoundError 问题
+# @pytest.fixture(scope="session")
+# def sample_pdf_path(tmp_path_factory) -> Path:
+#     """Minimal but recognizable PDF bytes, generated dynamically in temp dir."""
+#     pdf = tmp_path_factory.mktemp("pdfs") / "sample.pdf"
+#     pdf.write_bytes(
+#         b"%PDF-1.4\n"
+#         b"1 0 obj\n<< /Type /Catalog >>\nendobj\n"
+#         b"%%EOF\n"
+#     )
+#     return pdf
 
 
 @pytest.fixture(scope="session")
