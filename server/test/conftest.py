@@ -72,6 +72,7 @@ def app():
                 .replace("PRIMARY id", "PRIMARY KEY")             # 修正 PRIMARY id 错误
                 .replace("PRIMARY KEY", "PRIMARY KEY")            # 确保修正正确
                 .replace("AUTO_INCREMENT", "") 
+                .replace("PRIMARY id,", "PRIMARY KEY,")
                 
                 # 4. 最终清理
                 .replace("`", "") 

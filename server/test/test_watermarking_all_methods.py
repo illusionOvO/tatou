@@ -31,11 +31,7 @@
 # #     )
 # #     return pdf
 
-# @pytest.fixture(scope="session")
-# def sample_pdf_path() -> Path:
-#     # test 文件在 server/test，往上两级就是项目根 /app
-#     root = Path(__file__).resolve().parents[2]
-#     return root / "sample.pdf"
+
 
 
 
