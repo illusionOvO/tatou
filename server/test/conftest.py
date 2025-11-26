@@ -63,6 +63,8 @@ def app():
                 .replace("DEFAULT CURRENT_TIMESTAMP", "DEFAULT NULL") 
                 .replace("DEFAULT (datetime('now'))", "DEFAULT NULL")
                 .replace("NOW()", "NULL")
+                .replace("(", "")  # CRITICAL: 移除所有左括号
+                .replace(")", "")  # CRITICAL: 移除所有右括号
                 
                 .replace("AUTO_INCREMENT", "") 
                 .replace("`", "")                            # 移除所有反引号
