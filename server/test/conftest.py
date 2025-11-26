@@ -46,7 +46,7 @@ def app():
             # --- 【增强 SQL 清理：移除所有 MySQL 专用 DDL 语法】 ---
             cleaned_sql = (
                 sql_script
-                # 移除所有会导致 SQLite 崩溃的 MySQL 语句/关键字
+                # 1. 消除所有 MySQL 独有关键字
                 .replace("USE `tatou`;", "")                  
                 .replace("CREATE DATABASE", "-- CREATE DATABASE")
                 .replace("DEFAULT CHARSET=utf8mb4", "")       
@@ -59,27 +59,22 @@ def app():
                 .replace("ON DELETE CASCADE", "")             
                 .replace("DEFAULT NULL", "")                  
                 
-                # 2. 移除所有不兼容的日期函数和括号
+                # 2. 修正主键和列类型 (CRITICAL FIX for "near id: syntax error")
+                .replace("BIGINT NOT NULL", "INTEGER NOT NULL")
+                .replace("BIGINT", "INTEGER")
+                .replace("PRIMARY id,", "PRIMARY KEY,")
+                .replace("PRIMARY id", "PRIMARY KEY")
+                .replace("PRIMARY KEY,", "PRIMARY KEY,")      # 确保修正正确
+                
+                # 3. 清理日期函数和括号
                 .replace("DEFAULT CURRENT_TIMESTAMP", "DEFAULT NULL") 
                 .replace("DEFAULT (datetime('now'))", "DEFAULT NULL")
                 .replace("NOW()", "NULL")
                 .replace("(", "") 
                 .replace(")", "") 
-                
-                # 3. 修正列类型和主键 (CRITICAL FIX)
-                .replace("BIGINT NOT NULL", "INTEGER NOT NULL")   # 转换 BIGINT
-                .replace("BIGINT", "INTEGER")                     # 转换 BIGINT
-                .replace("PRIMARY id", "PRIMARY KEY")             # 修正 PRIMARY id 错误
-                .replace("PRIMARY KEY", "PRIMARY KEY")            # 确保修正正确
                 .replace("AUTO_INCREMENT", "") 
-                .replace("PRIMARY id,", "PRIMARY KEY,")
-                
-                # 4. 最终清理
                 .replace("`", "") 
                 .replace("KEY", "")                          
-                .replace("utf8mb4_unicode_ci", "")
-                .replace("utf8mb4_general_ci", "")
-                .replace("utf8mb4_u", "")
                 .replace("COLLATE", "")                      
                 .replace("\\n", "\n")
             )
