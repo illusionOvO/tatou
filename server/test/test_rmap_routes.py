@@ -123,13 +123,16 @@ def test_rmap_get_link_db_insert_failure(client, mocker):
     mock_conn.execute.side_effect = DBAPIError("DB insert failed", {}, {})
     mocker.patch('server.src.rmap_routes._get_engine', return_value=mock_engine)
 
-    # 3. 模拟输入 PDF 存在和水印成功 (避免文件错误)
+# 3. 模拟输入 PDF 存在和水印成功 (避免文件错误)
     mocker.patch.dict('os.environ', {'RMAP_INPUT_PDF': '/mock/exists.pdf'})
     mocker.patch('pathlib.Path.is_file', return_value=True)
     mocker.patch('pathlib.Path.read_bytes', return_value=b'pdf_content')
     mocker.patch('server.src.rmap_routes.VisibleTextWatermark.add_watermark', return_value=b'wm_content')
     mocker.patch('server.src.rmap_routes.MetadataWatermark.add_watermark', return_value=b'wm_content')
-    mocker.patch('pathlib.Path.write_bytes')
+
+    # 【CRITICAL FIX】：模拟文件写入和目录创建成功，防止 PermissionError
+    mocker.patch('pathlib.Path.mkdir', return_value=None)
+    mocker.patch('pathlib.Path.write_bytes', return_value=None)
     
     resp = client.post("/api/rmap-get-link", json={"payload": "dummy"})
     

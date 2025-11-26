@@ -56,14 +56,15 @@ def app():
                 .replace("CHARACTER SET latin1", "")
                 .replace("UNSIGNED", "")                     # 移除 UNSIGNED 关键字
                 .replace("ON UPDATE CURRENT_TIMESTAMP", "")   # 移除 ON UPDATE
-                .replace("ON DELETE CASCADE", "")             # 移除 ON DELETE
+                .replace("ON DELETE CASCADE", "")             
                 .replace("ENGINE=InnoDB", "")
-                .replace("COLLATE", "")                      # 再次移除所有 COLLATE 关键字
-                .replace("utf8mb4_unicode_ci", "")            # 移除所有排序规则名称
-                .replace("utf8mb4_general_ci", "")
-                .replace("utf8mb4_u", "")                     # 捕获最后的残留（比如 utf8mb4_u...）
-                .replace("AUTO_INCREMENT", "") 
-                .replace("\\n", "\n") 
+                .replace("COMMENT", "-- COMMENT")             # 移除 COMMENT 关键字
+                .replace("KEY", "")                          # 移除 KEY 关键字 (解决 near "KEY" 错误)
+                .replace("DEFAULT NULL", "")                  # 移除默认的 NULL 设置
+                .replace("DEFAULT CURRENT_TIMESTAMP", "DEFAULT (datetime('now'))") # 替换时间戳
+                .replace("NOW()", "datetime('now')")
+                .replace("COLLATE", "")                      
+                .replace("AUTO_INCREMENT", "")
             )
             # ----------------------------------------------------
             
@@ -112,9 +113,9 @@ def sample_pdf_path(tmp_path_factory) -> Path:
     # 写入最小合法的 PDF 字节流 (包含 Catalog, Pages, Page 对象)
     fn.write_bytes(
         b"%PDF-1.4\n"
-        b"1 0 obj\n<< /Type /Catalog /Pages 2 0 R >>\nendobj\n"
-        b"2 0 obj\n<< /Type /Pages /Kids [3 0 R] /Count 1 >>\nendobj\n"
-        b"3 0 obj\n<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Resources << >> >>\nendobj\n"
+        b"1 0 obj\n<< /Type /Catalog /Pages 2 0 R >>\nendobj\n" # Catalog
+        b"2 0 obj\n<< /Type /Pages /Kids [3 0 R] /Count 1 >>\nendobj\n" # Pages
+        b"3 0 obj\n<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Resources << >> >>\nendobj\n" # Page
         b"trailer\n<< /Root 1 0 R >>\n"
         b"startxref\n189\n%%EOF\n"
     )
