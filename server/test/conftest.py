@@ -59,18 +59,23 @@ def app():
                 .replace("ON DELETE CASCADE", "")             
                 .replace("DEFAULT NULL", "")                  
                 
-                # 针对日期时间的最终修复：全部替换为 NULL，避免 SQLite 复杂的函数语法
+                # 2. 移除所有不兼容的日期函数和括号
                 .replace("DEFAULT CURRENT_TIMESTAMP", "DEFAULT NULL") 
                 .replace("DEFAULT (datetime('now'))", "DEFAULT NULL")
                 .replace("NOW()", "NULL")
-                .replace("(", "")  # CRITICAL: 移除所有左括号
-                .replace(")", "")  # CRITICAL: 移除所有右括号
+                .replace("(", "") 
+                .replace(")", "") 
                 
+                # 3. 修正列类型和主键 (CRITICAL FIX)
+                .replace("BIGINT NOT NULL", "INTEGER NOT NULL")   # 转换 BIGINT
+                .replace("BIGINT", "INTEGER")                     # 转换 BIGINT
+                .replace("PRIMARY id", "PRIMARY KEY")             # 修正 PRIMARY id 错误
+                .replace("PRIMARY KEY", "PRIMARY KEY")            # 确保修正正确
                 .replace("AUTO_INCREMENT", "") 
-                .replace("`", "")                            # 移除所有反引号
-                .replace("KEY", "")                          # 移除所有 KEY 关键字
                 
-                # 针对排序规则的最终清洗
+                # 4. 最终清理
+                .replace("`", "") 
+                .replace("KEY", "")                          
                 .replace("utf8mb4_unicode_ci", "")
                 .replace("utf8mb4_general_ci", "")
                 .replace("utf8mb4_u", "")
@@ -126,7 +131,7 @@ def sample_pdf_path(tmp_path_factory) -> Path:
         b"%PDF-1.4\n"
         b"1 0 obj\n<< /Type /Catalog /Pages 2 0 R >>\nendobj\n" 
         b"2 0 obj\n<< /Type /Pages /Kids [3 0 R] /Count 1 >>\nendobj\n"
-        b"3 0 obj\n<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Resources << >> >>\nendobj\n" 
+        b"3 0 obj\n<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Resources << >> >>\nendobj\n"
         b"trailer\n<< /Root 1 0 R >>\n"
         b"startxref\n189\n%%EOF\n"
     )
