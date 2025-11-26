@@ -52,15 +52,17 @@ def app():
                 .replace("DEFAULT CHARSET=utf8mb4", "")       
                 .replace("COLLATE utf8mb4_0900_ai_ci", "")
                 .replace("COLLATE utf8mb4_general_ci", "")
-                .replace("CHARACTER SET utf8mb4", "")        # 移除 CHARACTER SET
+                .replace("CHARACTER SET utf8mb4", "")        
                 .replace("CHARACTER SET latin1", "")
                 .replace("UNSIGNED", "")                     # 移除 UNSIGNED 关键字
                 .replace("ON UPDATE CURRENT_TIMESTAMP", "")   # 移除 ON UPDATE
                 .replace("ON DELETE CASCADE", "")             # 移除 ON DELETE
                 .replace("ENGINE=InnoDB", "")
-                .replace("COLLATE", "")
-                .replace("AUTO_INCREMENT", "") # 移除 AUTO_INCREMENT (SQLite 使用 autoincrement)
-                # 确保路径分隔符兼容 Linux
+                .replace("COLLATE", "")                      # 再次移除所有 COLLATE 关键字
+                .replace("utf8mb4_unicode_ci", "")            # 移除所有排序规则名称
+                .replace("utf8mb4_general_ci", "")
+                .replace("utf8mb4_u", "")                     # 捕获最后的残留（比如 utf8mb4_u...）
+                .replace("AUTO_INCREMENT", "") 
                 .replace("\\n", "\n") 
             )
             # ----------------------------------------------------
@@ -114,7 +116,7 @@ def sample_pdf_path(tmp_path_factory) -> Path:
         b"2 0 obj\n<< /Type /Pages /Kids [3 0 R] /Count 1 >>\nendobj\n"
         b"3 0 obj\n<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Resources << >> >>\nendobj\n"
         b"trailer\n<< /Root 1 0 R >>\n"
-        b"%%EOF\n"
+        b"startxref\n189\n%%EOF\n"
     )
     return fn
 
