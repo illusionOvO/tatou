@@ -64,7 +64,8 @@ def app():
                 .replace("BIGINT", "INTEGER")
                 .replace("PRIMARY id,", "PRIMARY KEY,")
                 .replace("PRIMARY id", "PRIMARY KEY")
-                .replace("PRIMARY KEY,", "PRIMARY KEY,")      # 确保修正正确
+                .replace("PRIMARY KEY", "PRIMARY KEY")        # 确保修正正确
+                .replace("AUTO_INCREMENT", "") 
                 
                 # 3. 清理日期函数和括号
                 .replace("DEFAULT CURRENT_TIMESTAMP", "DEFAULT NULL") 
@@ -72,7 +73,6 @@ def app():
                 .replace("NOW()", "NULL")
                 .replace("(", "") 
                 .replace(")", "") 
-                .replace("AUTO_INCREMENT", "") 
                 .replace("`", "") 
                 .replace("KEY", "")                          
                 .replace("COLLATE", "")                      

@@ -17,11 +17,7 @@ def app():
 def client(app):
     return app.test_client()
 
-@pytest.fixture
-def sample_pdf_path(tmp_path):
-    pdf_path = tmp_path / "sample.pdf"
-    pdf_path.write_bytes(b"%PDF-1.4 test")
-    return pdf_path
+
 
 
 # ---------- Tests ----------
