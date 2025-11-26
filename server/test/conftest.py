@@ -83,10 +83,9 @@ def app():
             
             # 逐条执行 SQL
             for statement in sql_script.split(';'):
-                statement = statement.strip()
-                if statement:
-                    conn.execute(text(statement))
-            
+                stmt = statement.strip()
+                if stmt and not stmt.startswith("--"):
+                    conn.execute(text(stmt))
     return flask_app
 
 @pytest.fixture
