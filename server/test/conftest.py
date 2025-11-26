@@ -50,21 +50,26 @@ def app():
                 .replace("USE `tatou`;", "")                  
                 .replace("CREATE DATABASE", "-- CREATE DATABASE")
                 .replace("DEFAULT CHARSET=utf8mb4", "")       
-                .replace("COLLATE utf8mb4_0900_ai_ci", "")
-                .replace("COLLATE utf8mb4_general_ci", "")
                 .replace("CHARACTER SET utf8mb4", "")        
                 .replace("CHARACTER SET latin1", "")
-                .replace("UNSIGNED", "")                     # 移除 UNSIGNED 关键字
+                .replace("ENGINE=InnoDB", "")
+                .replace("COMMENT", "-- COMMENT")             
+                .replace("UNSIGNED", "")                     # 移除 UNSIGNED
                 .replace("ON UPDATE CURRENT_TIMESTAMP", "")   # 移除 ON UPDATE
                 .replace("ON DELETE CASCADE", "")             
-                .replace("ENGINE=InnoDB", "")
-                .replace("COMMENT", "-- COMMENT")             # 移除 COMMENT 关键字
-                .replace("KEY", "")                          # 移除 KEY 关键字 (解决 near "KEY" 错误)
-                .replace("DEFAULT NULL", "")                  # 移除默认的 NULL 设置
+                .replace("DEFAULT NULL", "")                  
                 .replace("DEFAULT CURRENT_TIMESTAMP", "DEFAULT (datetime('now'))") # 替换时间戳
                 .replace("NOW()", "datetime('now')")
+                .replace("AUTO_INCREMENT", "") 
+                .replace("`", "")                            # 移除所有反引号
+                .replace("KEY", "")                          # 移除所有 KEY 关键字
+                
+                # 针对排序规则的最终清洗 (解决 near "utf8mb4_u...")
+                .replace("utf8mb4_unicode_ci", "")
+                .replace("utf8mb4_general_ci", "")
+                .replace("utf8mb4_u", "")
                 .replace("COLLATE", "")                      
-                .replace("AUTO_INCREMENT", "")
+                .replace("\\n", "\n")
             )
             # ----------------------------------------------------
             
@@ -113,9 +118,9 @@ def sample_pdf_path(tmp_path_factory) -> Path:
     # 写入最小合法的 PDF 字节流 (包含 Catalog, Pages, Page 对象)
     fn.write_bytes(
         b"%PDF-1.4\n"
-        b"1 0 obj\n<< /Type /Catalog /Pages 2 0 R >>\nendobj\n" # Catalog
-        b"2 0 obj\n<< /Type /Pages /Kids [3 0 R] /Count 1 >>\nendobj\n" # Pages
-        b"3 0 obj\n<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Resources << >> >>\nendobj\n" # Page
+        b"1 0 obj\n<< /Type /Catalog /Pages 2 0 R >>\nendobj\n" # Catalog (入口)
+        b"2 0 obj\n<< /Type /Pages /Kids [3 0 R] /Count 1 >>\nendobj\n" # Pages (页面容器)
+        b"3 0 obj\n<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Resources << >> >>\nendobj\n" # Page (实际页面)
         b"trailer\n<< /Root 1 0 R >>\n"
         b"startxref\n189\n%%EOF\n"
     )
