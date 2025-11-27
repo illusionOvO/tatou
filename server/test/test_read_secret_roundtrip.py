@@ -9,7 +9,7 @@ SERVER_ROOT = THIS_FILE.parents[1]
 if str(SERVER_ROOT) not in sys.path:
     sys.path.insert(0, str(SERVER_ROOT))
 
-from src.server import app
+# from src.server import app
 
 
 def _signup_and_login(client):
@@ -63,8 +63,8 @@ def _create_watermark(client, headers, docid, *, secret, key, method="trailer-hm
     return method
 
 
-def test_read_secret_roundtrip():
-    client = app.test_client()
+def test_read_secret_roundtrip(client):
+    # client = app.test_client()
     headers = _signup_and_login(client)
 
     docid = _upload_pdf(client, headers)

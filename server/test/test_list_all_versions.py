@@ -10,7 +10,7 @@ SERVER_ROOT = os.path.abspath(os.path.join(THIS_DIR, ".."))
 if SERVER_ROOT not in sys.path:
     sys.path.insert(0, SERVER_ROOT)
 
-from src.server import app
+# from src.server import app
 
 
 def _sample_pdf_bytes() -> bytes:
@@ -69,8 +69,8 @@ def _create_watermark(client, headers, docid: int, method_name: str, key: str, s
     assert r.status_code == 201
 
 
-def test_list_all_versions_roundtrip():
-    client = app.test_client()
+def test_list_all_versions_roundtrip(client):
+    # client = app.test_client()
     headers = _signup_and_login(client)
 
     # ---------- 0. 拿一个合法 watermark 方法 ----------

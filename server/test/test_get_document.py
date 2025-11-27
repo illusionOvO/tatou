@@ -11,7 +11,7 @@ ROOT = Path(__file__).resolve().parents[1]   # .../tatou/server
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
-from src.server import app  # 这里拿到 Flask app 实例
+# from src.server import app  # 这里拿到 Flask app 实例
 
 
 def _sample_pdf_bytes() -> bytes:
@@ -47,8 +47,8 @@ def _signup_and_login(client):
     return {"Authorization": f"Bearer {token}"}
 
 
-def test_get_document_roundtrip():
-    client = app.test_client()
+def test_get_document_roundtrip(client):
+    # client = app.test_client()
     headers = _signup_and_login(client)
 
     # 1. 先上传一个 PDF

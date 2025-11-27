@@ -11,7 +11,7 @@ SERVER_SRC = SERVER_ROOT / "src"
 if str(SERVER_ROOT) not in sys.path:
     sys.path.insert(0, str(SERVER_ROOT))
 
-from server import app
+# from server import app
 
 def _signup_and_login(client):
     email = f"cli_{uuid.uuid4().hex}@example.com"
@@ -48,8 +48,8 @@ def _upload_pdf(client, headers, filename="doc.pdf"):
     return r.get_json()["id"]
 
 
-def test_cli_layer_is_exercised():
-    client = app.test_client()
+def test_cli_layer_is_exercised(client):
+    # client = app.test_client()
     headers = _signup_and_login(client)
 
     docid = _upload_pdf(client, headers, "sample.pdf")

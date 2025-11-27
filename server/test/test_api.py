@@ -6,11 +6,11 @@ ROOT = Path(__file__).resolve().parents[1]   # ...\tatou\server
 sys.path.insert(0, str(ROOT))
 
 
-from src.server import app
+# from src.server import app
 
 
-def test_healthz_route():
-    client = app.test_client()
+def test_healthz_route(client):
+    # client = app.test_client()
     resp = client.get("/healthz")
 
     assert resp.status_code == 200
@@ -18,8 +18,8 @@ def test_healthz_route():
     
 
 # test get_watermarking_methods
-def test_get_watermarking_methods():
-    client = app.test_client()
+def test_get_watermarking_methods(client):
+    # client = app.test_client()
     resp = client.get("/api/get-watermarking-methods")
 
     # 1. HTTP 层：应该 200 且是 JSON

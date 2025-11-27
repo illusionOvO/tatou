@@ -10,7 +10,7 @@ SERVER_ROOT = os.path.abspath(os.path.join(THIS_DIR, ".."))
 if SERVER_ROOT not in sys.path:
     sys.path.insert(0, SERVER_ROOT)
 
-from src.server import app
+# from src.server import app
 
 
 def _sample_pdf_bytes() -> bytes:
@@ -38,8 +38,8 @@ def _signup_and_login(client):
     return {"Authorization": f"Bearer {token}"}
 
 
-def test_list_versions_roundtrip():
-    client = app.test_client()
+def test_list_versions_roundtrip(client):
+    # client = app.test_client()
     headers = _signup_and_login(client)
 
     # 1. upload document

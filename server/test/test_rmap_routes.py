@@ -5,17 +5,17 @@ from unittest.mock import MagicMock
 from sqlalchemy.exc import DBAPIError
 
 # -------- fixtures ----------
-@pytest.fixture
-def app():
-    from server.src.server import create_app
-    flask_app = create_app()
-    flask_app.config["TESTING"] = True
-    flask_app.config["STORAGE_DIR"] = "/app/storage"
-    return flask_app
+# @pytest.fixture
+# def app():
+#     from server.src.server import create_app
+#     flask_app = create_app()
+#     flask_app.config["TESTING"] = True
+#     flask_app.config["STORAGE_DIR"] = "/app/storage"
+#     return flask_app
 
-@pytest.fixture
-def client(app):
-    return app.test_client()
+# @pytest.fixture
+# def client(app):
+#     return app.test_client()
 
 # def sample_pdf_path(tmp_path):
 

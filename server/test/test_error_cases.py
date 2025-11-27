@@ -18,7 +18,7 @@ SERVER_ROOT = THIS_FILE.parents[1]
 if str(SERVER_ROOT) not in sys.path:
     sys.path.insert(0, str(SERVER_ROOT))
 
-from src.server import app, _safe_resolve_under_storage # 导入 _safe_resolve_under_storage
+from src.server import _safe_resolve_under_storage # 导入 _safe_resolve_under_storage
 from src.server import create_app # 确保导入 create_app
 
 # --------------------------------------------------------

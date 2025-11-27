@@ -9,7 +9,7 @@ SERVER_ROOT = THIS_FILE.parents[1]        # .../server
 if str(SERVER_ROOT) not in sys.path:
     sys.path.insert(0, str(SERVER_ROOT))
 
-from src.server import app   # 这里对应 server/src/server.py 里的 app
+# from src.server import app   # 这里对应 server/src/server.py 里的 app
 
 
 def _sample_pdf_bytes():
@@ -44,8 +44,8 @@ def _signup_and_login(client):
     return {"Authorization": f"Bearer {token}"}
 
 
-def test_delete_document_roundtrip():
-    client = app.test_client()
+def test_delete_document_roundtrip(client):
+    # client = app.test_client()
     headers = _signup_and_login(client)
 
     # 1. 上传一个 PDF
