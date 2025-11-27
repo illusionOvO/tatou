@@ -1,121 +1,96 @@
+# conftest.py
 import pytest
 import sys
 import uuid
 from pathlib import Path
-from sqlalchemy import text
-import os
 import re
+from sqlalchemy import text
 
-# 确保项目根目录在 sys.path 中
-ROOT_DIR = Path(__file__).resolve().parents[2]
+# 确保能导入 server
+ROOT_DIR = Path(__file__).resolve().parents[1]  # 假设 conftest.py 在 tests/ 下
 if str(ROOT_DIR) not in sys.path:
     sys.path.insert(0, str(ROOT_DIR))
 
-# 导入 Flask app 和数据库引擎
-from server.src.server import create_app, get_engine
+from src.server import create_app, get_engine
+
+
+def _load_and_clean_sql_schema(sql_path: Path) -> str:
+    """加载 tatou.sql 并转换为 SQLite 兼容语法"""
+    sql = sql_path.read_text(encoding="utf-8")
+
+    # 移除 MySQL 专属语法
+    sql = re.sub(r'(?i)^\s*USE\s+\S+\s*;?', '', sql, flags=re.MULTILINE)
+    sql = re.sub(r'(?i)^\s*CREATE\s+DATABASE.*?;?', '', sql, flags=re.MULTILINE)
+    sql = re.sub(r'\bCOLLATE\s+\w+', '', sql, flags=re.IGNORECASE)
+    sql = re.sub(r'\bCHARACTER\s+SET\s+\w+', '', sql, flags=re.IGNORECASE)
+    sql = re.sub(r'\bDEFAULT\s+CHARSET=\w+', '', sql, flags=re.IGNORECASE)
+    sql = re.sub(r'\bENGINE\s*=\s*\w+', '', sql, flags=re.IGNORECASE)
+    sql = re.sub(r'\bROW_FORMAT\s*=\s*\w+', '', sql, flags=re.IGNORECASE)
+
+    # 类型替换
+    sql = sql.replace("BIGINT UNSIGNED", "INTEGER")
+    sql = sql.replace("BIGINT", "INTEGER")
+    sql = re.sub(r'\bUNSIGNED\b', '', sql, flags=re.IGNORECASE)
+    sql = sql.replace("AUTO_INCREMENT", "")
+    sql = sql.replace("DATETIME(6)", "TEXT")  # SQLite 不支持微秒 DATETIME
+    sql = sql.replace("BINARY(32)", "BLOB")
+    sql = sql.replace("`", "")  # 去掉反引号
+
+    return sql
 
 
 @pytest.fixture(scope="session")
 def app():
-    """提供配置了内存数据库且已初始化表的 Flask app"""
-    # 创建 Flask 应用实例
+    """创建一个使用内存 SQLite 的 Flask 应用，并初始化表结构"""
     flask_app = create_app()
-    
-    # 强制使用 SQLite 内存数据库
+
+    # 配置为测试模式 + 内存数据库
     flask_app.config.update({
         "TESTING": True,
-        "SQLALCHEMY_DATABASE_URI": "sqlite:///:memory:",
-        "_ENGINE": None
+        "SQLALCHEMY_DATABASE_URI": "sqlite:///:memory:",  # 让 db_url() 返回这个
     })
 
-    # 构造 SQL 文件路径
-    SQL_INIT_PATH = ROOT_DIR / "db" / "tatou.sql"
-    if not SQL_INIT_PATH.exists():
-        raise FileNotFoundError(f"Missing SQL initialization file at: {SQL_INIT_PATH}")
+    # 获取引擎（会缓存到 app.config["_ENGINE"]）
+    engine = get_engine(flask_app)
 
-    # 读取并彻底清理 SQL 脚本
-    sql_script = SQL_INIT_PATH.read_text()
+    # 加载并执行建表 SQL
+    sql_init_path = Path(__file__).parent.parent / "db" / "tatou.sql"
+    if not sql_init_path.exists():
+        raise FileNotFoundError(f"SQL schema file not found: {sql_init_path}")
 
-    # === 关键：移除所有 MySQL/MariaDB 专属语法 ===
-    # 移除 USE 和 CREATE DATABASE
-    sql_script = re.sub(r'(?i)^\s*USE\s+\S+\s*;?', '', sql_script, flags=re.MULTILINE)
-    sql_script = re.sub(r'(?i)^\s*CREATE\s+DATABASE.*?;?', '', sql_script, flags=re.MULTILINE)
+    clean_sql = _load_and_clean_sql_schema(sql_init_path)
 
-    # 移除字段级 MySQL 属性
-    sql_script = re.sub(r'\bCOLLATE\s+\w+', '', sql_script, flags=re.IGNORECASE)
-    sql_script = re.sub(r'\bCHARACTER\s+SET\s+\w+', '', sql_script, flags=re.IGNORECASE)
-    sql_script = re.sub(r'\bDEFAULT\s+CHARSET=\w+', '', sql_script, flags=re.IGNORECASE)
-    sql_script = re.sub(r'\bENGINE\s*=\s*\w+', '', sql_script, flags=re.IGNORECASE)
-    sql_script = re.sub(r'\bROW_FORMAT\s*=\s*\w+', '', sql_script, flags=re.IGNORECASE)
-
-    # 替换数据类型和关键字
-    sql_script = sql_script.replace("BIGINT UNSIGNED", "INTEGER")
-    sql_script = sql_script.replace("BIGINT", "INTEGER")
-    sql_script = sql_script.replace("UNSIGNED", "")
-    sql_script = sql_script.replace("AUTO_INCREMENT", "")
-    sql_script = sql_script.replace("DATETIME(6)", "TEXT")      # SQLite 用 TEXT 存时间
-    sql_script = sql_script.replace("BINARY(32)", "BLOB")       # SHA256 二进制
-    sql_script = sql_script.replace("`", "")                    # 去掉反引号
-    sql_script = sql_script.replace("\\n", "\n")
-
-    # 执行清理后的 SQL
-    with flask_app.app_context():
-        engine = get_engine(flask_app)
-        with engine.begin() as conn:
-            for statement in sql_script.split(';'):
-                stmt = statement.strip()
-                if stmt and not stmt.startswith("--") and not stmt.startswith("/*"):
-                    try:
-                        conn.execute(text(stmt))
-                    except Exception as e:
-                        print(f"\n❌ Failed to execute SQL:\n{stmt}\nError: {e}\n")
-                        raise
+    with engine.begin() as conn:
+        for stmt in clean_sql.split(";"):
+            s = stmt.strip()
+            if s and not s.startswith("--") and not s.startswith("/*"):
+                try:
+                    conn.execute(text(s))
+                except Exception as e:
+                    print(f"❌ Failed to execute SQL:\n{s}\nError: {e}")
+                    raise
 
     return flask_app
 
 
 @pytest.fixture
 def client(app):
-    """提供 Flask 测试客户端"""
     return app.test_client()
 
 
 @pytest.fixture
 def auth_headers(client):
-    """自动注册并登录一个用户，返回认证 Headers"""
-    email = f"auto-{uuid.uuid4().hex[:8]}@example.com"
-    password = "Passw0rd!"
+    email = f"test-{uuid.uuid4().hex[:8]}@example.com"
+    login = f"user_{uuid.uuid4().hex[:8]}"
+    password = "SecurePass123!"
 
     # 注册
-    client.post("/api/create-user", json={
-        "email": email,
-        "login": f"u_{uuid.uuid4().hex[:8]}",
-        "password": password
-    })
+    resp = client.post("/api/create-user", json={"email": email, "login": login, "password": password})
+    assert resp.status_code == 201, f"注册失败: {resp.get_json()}"
 
     # 登录
     resp = client.post("/api/login", json={"email": email, "password": password})
-    if resp.status_code != 200:
-        return {}
+    assert resp.status_code == 200, f"登录失败: {resp.get_json()}"
+
     token = resp.get_json()["token"]
     return {"Authorization": f"Bearer {token}"}
-
-
-@pytest.fixture(scope="session")
-def sample_pdf_path(tmp_path_factory) -> Path:
-    """生成一个有效的测试 PDF 文件"""
-    fn = tmp_path_factory.mktemp("pdfs") / "sample.pdf"
-    from reportlab.pdfgen import canvas
-    c = canvas.Canvas(str(fn))
-    c.drawString(100, 750, "Test PDF for Tatou")
-    c.save()
-    return fn
-
-
-@pytest.fixture
-def unique_user_data():
-    return {
-        "email": f"test-{uuid.uuid4().hex}@example.com",
-        "login": f"test_login_{uuid.uuid4().hex[:8]}",
-        "password": "SecurePassword123!"
-    }
