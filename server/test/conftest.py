@@ -11,7 +11,7 @@ ROOT_DIR = Path(__file__).resolve().parents[1]  # 假设 conftest.py 在 tests/ 
 if str(ROOT_DIR) not in sys.path:
     sys.path.insert(0, str(ROOT_DIR))
 
-from server import create_app, get_engine
+from server.src.server import create_app, get_engine
 
 
 def _load_and_clean_sql_schema(sql_path: Path) -> str:
