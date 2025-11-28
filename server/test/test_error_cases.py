@@ -243,29 +243,34 @@ def test_upload_rejects_bad_pdf_header(client, mocker, logged_in_client):
     """测试上传文件头不是 %PDF 的文件 (L232) - Mocking file.stream"""
     headers = logged_in_client
     
-    # 1. Mock file.stream.read，强制它返回错误的文件头
-    mock_read = mocker.patch('werkzeug.datastructures.FileStorage.read')
+    # # 1. Mock file.stream.read，强制它返回错误的文件头
+    # mock_read = mocker.patch('werkzeug.datastructures.FileStorage.read')
+    # # 第一次 read(4) 应该返回 "NOT%"，然后 file.stream.seek(0) 被调用
+    # # 实际上，我们需要 Mock 整个 file.stream 对象
+    # # 模拟 FileStorage 实例
+    # mock_file_stream = MagicMock()
+    # mock_file_stream.read.side_effect = [b"NOT%", b""] # 模拟第一次读4个字节，后续读空
+    # # Mocking Werkzeug 的 FileStorage 类
+    # mocker.patch('werkzeug.datastructures.FileStorage', autospec=True, 
+    #              return_value=mock_file_stream)
+    # resp = client.post(
+    #     "/api/upload-document",
+    #     data={"file": (io.BytesIO(b"NOT%PDF-1.4 test"), "doc.pdf")},
+    #     headers=headers,
+    # )
+
+    bad_pdf_content = b"NOT_A_PDF_HEADER" 
     
-    # 第一次 read(4) 应该返回 "NOT%"，然后 file.stream.seek(0) 被调用
-    # 实际上，我们需要 Mock 整个 file.stream 对象
-    
-    # 模拟 FileStorage 实例
-    mock_file_stream = MagicMock()
-    mock_file_stream.read.side_effect = [b"NOT%", b""] # 模拟第一次读4个字节，后续读空
-    
-    # Mocking Werkzeug 的 FileStorage 类
-    mocker.patch('werkzeug.datastructures.FileStorage', autospec=True, 
-                 return_value=mock_file_stream)
-    
-    resp = client.post(
+    r = client.post(
         "/api/upload-document",
-        data={"file": (io.BytesIO(b"NOT%PDF-1.4 test"), "doc.pdf")},
+        data={"file": (io.BytesIO(bad_pdf_content), "bad_header.pdf")},
         headers=headers,
+        content_type="multipart/form-data",
     )
-    
+
     # L232 检查应该生效，返回 400
-    assert resp.status_code == 400
-    assert "file is not a valid PDF" in resp.get_json()["error"]
+    assert r.status_code == 400
+    assert "file is not a valid PDF" in r.get_json()["error"]
 
 
 def test_upload_rejects_empty_filename(client, logged_in_client):

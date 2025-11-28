@@ -130,9 +130,9 @@ if str(ROOT_DIR) not in sys.path:
 from server.src.server import create_app, get_engine, db_url
 from unittest.mock import MagicMock
 
-# @pytest.fixture(scope="session")
+# @pytest.fixture(scope="session")20251128
 @pytest.fixture
-def app(mocker):
+def app(mocker, tmp_path):
     """
     提供配置了内存数据库且已初始化表的 Flask app。
     这里直接使用 SQLite 语法建表，绕过 MySQL 兼容性问题。
@@ -141,10 +141,12 @@ def app(mocker):
     mocker.patch('server.src.server.db_url', return_value='sqlite:///:memory:')
     
     flask_app = create_app()
+
     flask_app.config.update({
         "TESTING": True,
         "SQLALCHEMY_DATABASE_URI": "sqlite:///:memory:",
-        "_ENGINE": None
+        "_ENGINE": None,
+        "STORAGE_DIR": str(tmp_path / "storage_test"), # 20251128强制使用临时目录，解决 PermissionError
     })
 
     # 2. 定义绝对兼容 SQLite 的建表语句
