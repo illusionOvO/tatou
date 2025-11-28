@@ -146,7 +146,7 @@ def app(mocker, tmp_path):
         "TESTING": True,
         "SQLALCHEMY_DATABASE_URI": "sqlite:///:memory:",
         "_ENGINE": None,
-        "STORAGE_DIR": str(tmp_path / "storage_test"), # 20251128强制使用临时目录，解决 PermissionError
+        "STORAGE_DIR": tmp_path / "storage_test", # 20251128强制使用临时目录，解决 PermissionError
     })
 
     # 2. 定义绝对兼容 SQLite 的建表语句

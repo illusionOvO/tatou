@@ -465,11 +465,20 @@ def create_app():
         if not row:
             return jsonify({"error": "document not found"}), 404
 
-        file_path = Path(row.path)
+
         try:
-            file_path.resolve().relative_to(app.config["STORAGE_DIR"].resolve())
+            # 使用统一的安全函数 (这样测试里的 Mock 就能生效了)
+            file_path = _safe_resolve_under_storage(row.path, app.config["STORAGE_DIR"])
         except Exception:
             return jsonify({"error": "document path invalid"}), 500
+        
+        # file_path = Path(row.path)
+        # try:
+        #     file_path.resolve().relative_to(app.config["STORAGE_DIR"].resolve())
+        # except Exception:
+        #     return jsonify({"error": "document path invalid"}), 500
+        
+
         if not file_path.exists():
             return jsonify({"error": "file missing on disk"}), 410
 
