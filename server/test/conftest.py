@@ -130,7 +130,8 @@ if str(ROOT_DIR) not in sys.path:
 from server.src.server import create_app, get_engine, db_url
 from unittest.mock import MagicMock
 
-@pytest.fixture(scope="session")
+# @pytest.fixture(scope="session")
+@pytest.fixture
 def app(mocker):
     """
     提供配置了内存数据库且已初始化表的 Flask app。
