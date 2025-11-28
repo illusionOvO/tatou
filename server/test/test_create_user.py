@@ -10,6 +10,10 @@ from sqlalchemy.exc import IntegrityError, DBAPIError # 使用 DBAPIError 模拟
 # 并且 get_engine, app 已经被提升到模块级。
 # from server.src.server import app as server_app 
 
+import sys
+print("Modules:", list(sys.modules.keys()))
+print("server.src.server path:", sys.modules.get('server.src.server'))
+
 
 @pytest.fixture
 def unique_user_data():
@@ -86,8 +90,8 @@ def test_create_user_server_error_final(client, unique_user_data, mocker):
     
     # 2. 清理 app 缓存的 engine
     #    这是关键：确保 get_engine 必须调用 create_engine (即 Mock) 而不是使用缓存
-    original_engine = client.app.config.get("_ENGINE")
-    client.app.config["_ENGINE"] = None
+    original_engine = client.application.config.get("_ENGINE")
+    client.application.config["_ENGINE"] = None
     
     # 3. 调用 create-user API
     resp = client.post(
@@ -96,7 +100,7 @@ def test_create_user_server_error_final(client, unique_user_data, mocker):
     )
 
     # 4. 恢复 app 缓存 (重要，防止影响其他测试)
-    client.app.config["_ENGINE"] = original_engine
+    client.application.config["_ENGINE"] = original_engine
 
     # 5. 断言：状态码必须是 503 Service Unavailable
     assert resp.status_code == 503 
