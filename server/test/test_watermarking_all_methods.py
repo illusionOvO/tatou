@@ -6,8 +6,7 @@ import pytest
 # 直接导入你自己的三种方法
 from server.src.add_after_eof import AddAfterEOF
 from server.src.visible_text import VisibleTextWatermark
-from server.src.metadata_watermark import MetadataWatermark  # 你自己的 XMP/metadata 方法
-
+from server.src.metadata_watermark import MetadataWatermark 
 
 # --------- 明确列出要测试的方法 ----------
 
@@ -17,38 +16,22 @@ CASES: list[tuple[str, object]] = [
     ("metadata-xmp", MetadataWatermark),   
 ]
 
-
 # --------- fixtures ----------
 
-# # FIX: 使用动态夹具，解决 FileNotFoundError 问题
-# @pytest.fixture(scope="session")
-# def sample_pdf_path(tmp_path_factory) -> Path:
-#     """Minimal but recognizable PDF bytes, generated dynamically in temp dir."""
-#     pdf = tmp_path_factory.mktemp("pdfs") / "sample.pdf"
-#     pdf.write_bytes(
-#         b"%PDF-1.4\n"
-#         b"1 0 obj\n<< /Type /Catalog >>\nendobj\n"
-#         b"%%EOF\n"
-#     )
-#     return pdf
-
+# (注意：这里没有任何 sample_pdf_path 的定义，这正是我们想要的！)
 
 @pytest.fixture(scope="session")
 def secret() -> str:
     return "unit-test-secret"
 
-
 @pytest.fixture(scope="session")
 def key() -> str:
     return "unit-test-key"
 
-
 def _as_instance(impl: object) -> object:
-    """Return an instance for class objects; pass instances through."""
     if inspect.isclass(impl):
-        return impl()  # assumes zero-arg constructor
+        return impl() 
     return impl
-
 
 # --------- parameterization over all methods ----------
 

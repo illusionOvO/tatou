@@ -10,31 +10,31 @@ ROOT_DIR = Path(__file__).resolve().parents[2]
 if str(ROOT_DIR) not in sys.path:
     sys.path.insert(0, str(ROOT_DIR))
 
-from server.src.server import create_app, get_engine
+from server.src.server import create_app, get_engine, db_url
 
 @pytest.fixture
 def app(mocker, tmp_path):
     """
     提供配置了内存数据库且已初始化表的 Flask app。
-    直接使用 SQLite 语法建表，绕过 MySQL 兼容性问题。
+    【绝杀方案】：直接使用 Python 字符串定义 SQLite 表结构，不再读取 tatou.sql 文件。
     """
     # 1. 强制 server.py 里的 db_url 使用 SQLite
     mocker.patch('server.src.server.db_url', return_value='sqlite:///:memory:')
     
     flask_app = create_app()
     
-    # 【关键修复】配置 STORAGE_DIR 为临时目录，解决 PermissionError
+    # 配置临时存储目录，解决 PermissionError
     storage_dir = tmp_path / "storage_test"
-    storage_dir.mkdir()
-    
+    storage_dir.mkdir(exist_ok=True)
+
     flask_app.config.update({
         "TESTING": True,
         "SQLALCHEMY_DATABASE_URI": "sqlite:///:memory:",
         "_ENGINE": None,
-        "STORAGE_DIR": storage_dir,  # <--- 这里修复了文件权限错误
+        "STORAGE_DIR": storage_dir, 
     })
 
-    # 2. 定义绝对兼容 SQLite 的建表语句 (修复 503 数据库错误)
+    # 2. 直接定义 SQLite 兼容的建表语句 (不含 MySQL 特有语法)
     sqlite_schema = """
     CREATE TABLE Users (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
