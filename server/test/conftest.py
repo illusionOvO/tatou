@@ -5,6 +5,7 @@ import uuid
 from pathlib import Path
 import re
 from sqlalchemy import text
+import fitz
 
 # 确保能导入 server
 ROOT_DIR = Path(__file__).resolve().parents[1]  # 假设 conftest.py 在 tests/ 下
@@ -94,3 +95,13 @@ def auth_headers(client):
 
     token = resp.get_json()["token"]
     return {"Authorization": f"Bearer {token}"}
+
+@pytest.fixture(scope="session")
+def sample_pdf_path(tmp_path_factory):
+    pdf_path = tmp_path_factory.mktemp("pdfs") / "sample.pdf"
+    doc = fitz.open()
+    page = doc.new_page()
+    page.insert_text((50, 50), "Hello Test")
+    doc.save(pdf_path)
+    doc.close()
+    return pdf_path
