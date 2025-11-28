@@ -252,12 +252,50 @@ def create_app():
         if not fname.lower().endswith(".pdf"):
             return jsonify({"error": "only PDF files are allowed"}), 400
 
-        # MIME check; if mismatch, verify header starts with %PDF
-        if file.mimetype != "application/pdf":
-            header = file.stream.read(4)
-            file.stream.seek(0)
-            if header != b"%PDF":
-                return jsonify({"error": "file is not a valid PDF"}), 400
+
+
+
+
+
+
+
+
+
+
+        # 更严格的 PDF 初步检查
+        header = file.stream.read(10)
+        file.stream.seek(0)  # 回到开头
+
+        # 检查是否以 %PDF- 开头
+        if not header.startswith(b"%PDF-"):
+            return jsonify({"error": "file is not a valid PDF"}), 400
+
+        # 检查文件大小是否合理（避免空文件或极短文件）
+        file.stream.seek(0, 2)  # 移动到文件末尾
+        total_size = file.stream.tell()
+        file.stream.seek(0)     # 回到开头
+
+        if total_size < 100:
+            return jsonify({"error": "file too small to be a valid PDF"}), 400
+
+
+
+
+
+
+
+
+
+
+
+
+
+        # # MIME check; if mismatch, verify header starts with %PDF
+        # if file.mimetype != "application/pdf":
+        #     header = file.stream.read(4)
+        #     file.stream.seek(0)
+        #     if header != b"%PDF":
+        #         return jsonify({"error": "file is not a valid PDF"}), 400
 
         user_dir = app.config["STORAGE_DIR"] / "files" / g.user["login"]
         user_dir.mkdir(parents=True, exist_ok=True)
