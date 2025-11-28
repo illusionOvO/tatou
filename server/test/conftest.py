@@ -97,11 +97,19 @@ def auth_headers(client):
     return {"Authorization": f"Bearer {token}"}
 
 @pytest.fixture(scope="session")
-def sample_pdf_path(tmp_path_factory):
-    pdf_path = tmp_path_factory.mktemp("pdfs") / "sample.pdf"
+def sample_pdf_path(tmp_path_factory) -> Path:
+    """使用 PyMuPDF (fitz) 生成一个完全合法的 PDF 文件"""
+    fn = tmp_path_factory.mktemp("pdf_data") / "sample.pdf"
+    
+    # 创建一个新文档
     doc = fitz.open()
+    # 插入一页 (这解决了 zero pages 问题)
     page = doc.new_page()
-    page.insert_text((50, 50), "Hello Test")
-    doc.save(pdf_path)
+    # 写入一些内容
+    page.insert_text((50, 50), "Hello, World! This is a valid PDF.")
+    
+    # 保存到临时路径
+    doc.save(str(fn))
     doc.close()
-    return pdf_path
+    
+    return fn
