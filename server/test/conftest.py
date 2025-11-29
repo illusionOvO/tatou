@@ -13,7 +13,7 @@ if str(ROOT_DIR) not in sys.path:
 
 from server.src.server import create_app, get_engine
 
-@pytest.fixture(scope="session")
+@pytest.fixture
 def app(mocker, tmp_path_factory):
     """
     提供配置了内存数据库且已初始化表的 Flask app。
