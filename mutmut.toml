@@ -3,7 +3,7 @@
 paths_to_mutate = server/src/
 
 # 指定测试运行命令 (关键：使用 python -m 确保路径正确)
-runner = python -m pytest --pyargs server.test --rootdir=. --tb=short
+runner = python -m pytest server/test/ -v --tb=short
 
 # 指定测试文件所在的目录 (修正为单数 test)
 tests_dir = server/test/
