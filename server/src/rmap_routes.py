@@ -213,11 +213,11 @@ def rmap_get_link():
         return jsonify({"error": "rmap-get-link failed"}), 400
     
 
-#download PDF
-@bp.get("/get-version/<secret>")
-def get_version(secret):
-    from flask import send_file
-    pdf_path = Path("/app/storage/watermarks") / f"{secret}.pdf"
-    if not pdf_path.exists():
-        return jsonify({"error": "document not found"}), 404
-    return send_file(pdf_path, mimetype="application/pdf")
+# #download PDF
+# @bp.get("/get-version/<secret>")
+# def get_version(secret):
+#     from flask import send_file
+#     pdf_path = Path("/app/storage/watermarks") / f"{secret}.pdf"
+#     if not pdf_path.exists():
+#         return jsonify({"error": "document not found"}), 404
+#     return send_file(pdf_path, mimetype="application/pdf")
