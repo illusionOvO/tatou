@@ -7,6 +7,8 @@ import datetime as dt
 from pathlib import Path
 from functools import wraps
 
+import traceback
+
 from sqlalchemy.exc import IntegrityError 
 
 from flask import Flask, jsonify, request, g, send_file
@@ -227,6 +229,11 @@ def create_app():
                     {"email": email},
                 ).first()
         except Exception as e:
+            # --- DEBUG START ---
+            print(f"\n[DEBUG] 503 Error Triggered in {request.path}:")
+            print(f"Error Message: {e}")
+            traceback.print_exc()  # 打印完整的堆栈跟踪，这最重要！
+            # --- DEBUG END ---
             return jsonify({"error": f"database error: {e}"}), 503
 
         if not row or not check_password_hash(row.hpassword, password):
