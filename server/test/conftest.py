@@ -3,7 +3,7 @@ import sys
 import uuid
 from pathlib import Path
 from sqlalchemy import text, create_engine
-from sqlalchemy.pool import StaticPool  # <--- 【核心救星】
+from sqlalchemy.pool import StaticPool
 import fitz  # PyMuPDF
 
 # 确保能导入 server 模块
@@ -11,38 +11,42 @@ ROOT_DIR = Path(__file__).resolve().parents[2]
 if str(ROOT_DIR) not in sys.path:
     sys.path.insert(0, str(ROOT_DIR))
 
-from server.src.server import create_app, get_engine
+from server.src.server import create_app
 
 @pytest.fixture
-def app(mocker, tmp_path_factory):
+def app(mocker, tmp_path):
     """
     提供配置了内存数据库且已初始化表的 Flask app。
-    使用 StaticPool 确保内存数据库在测试期间不会丢失。
+    使用 StaticPool + Mock get_engine，确保服务器连接到正确的数据库实例。
     """
-    # 1. 强制 server.py 里的 db_url 使用 SQLite
-    mocker.patch('server.src.server.db_url', return_value='sqlite:///:memory:')
     
-    flask_app = create_app()
-    
-    # 2. 配置临时存储目录
-    storage_dir = tmp_path_factory.mktemp("storage_test")
-    
-    # 3. 【关键修复】创建带 StaticPool 的引擎
-    # StaticPool 确保所有线程使用同一个连接，且不会断开，防止 DB 被清空
+    # 1. 创建一个持久的内存数据库引擎 (StaticPool)
     test_engine = create_engine(
         "sqlite:///:memory:", 
         connect_args={"check_same_thread": False}, 
         poolclass=StaticPool 
     )
     
+    # 【核心绝杀】：直接劫持 server.py 中的 get_engine 函数
+    # 无论服务器怎么调用，都强制返回我们这个已经建好表的 test_engine
+    mocker.patch('server.src.server.get_engine', return_value=test_engine)
+    
+    # 同时劫持 rmap_routes 中的 _get_engine (以防万一)
+    mocker.patch('server.src.rmap_routes._get_engine', return_value=test_engine)
+
+    # 2. 配置 Flask 和 临时存储
+    flask_app = create_app()
+    storage_dir = tmp_path / "storage_test"
+    storage_dir.mkdir(exist_ok=True)
+    
     flask_app.config.update({
         "TESTING": True,
         "SQLALCHEMY_DATABASE_URI": "sqlite:///:memory:",
-        "_ENGINE": test_engine,  # 直接注入我们配好的引擎
+        "_ENGINE": test_engine, 
         "STORAGE_DIR": storage_dir,
     })
 
-    # 4. 直接执行 SQLite 建表 (不再读取 tatou.sql，彻底根除语法错误)
+    # 3. 直接写入 SQLite 表结构 (无需读取 tatou.sql)
     sqlite_schema = """
     CREATE TABLE Users (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -79,7 +83,7 @@ def app(mocker, tmp_path_factory):
     );
     """
 
-    # 初始化数据库
+    # 4. 初始化数据库
     with flask_app.app_context():
         with test_engine.begin() as conn:
             for statement in sqlite_schema.strip().split(';'):
@@ -108,19 +112,11 @@ def auth_headers(client):
 
 @pytest.fixture(scope="session")
 def sample_pdf_path(tmp_path_factory):
-    """
-    使用 fitz 生成一个合法的单页 PDF。
-    这能彻底解决 'cannot save with zero pages' 问题。
-    """
+    """使用 fitz 生成合法 PDF，解决 zero pages 问题"""
     pdf_path = tmp_path_factory.mktemp("pdfs") / "sample.pdf"
-    
-    # 创建 PDF 并写入一页
     doc = fitz.open()
     page = doc.new_page()
-    page.insert_text((50, 50), "Test Content")
-    
-    # 【细节修复】显式转为字符串路径，防止旧版库不兼容 Path 对象
+    page.insert_text((50, 50), "Valid Content")
     doc.save(str(pdf_path))
     doc.close()
-    
     return pdf_path
