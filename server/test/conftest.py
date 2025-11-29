@@ -2,7 +2,8 @@ import pytest
 import sys
 import uuid
 from pathlib import Path
-from sqlalchemy import text
+from sqlalchemy import text, create_engine
+from sqlalchemy.pool import StaticPool  # <--- 【核心救星】
 import fitz  # PyMuPDF
 
 # 确保能导入 server 模块
@@ -10,31 +11,38 @@ ROOT_DIR = Path(__file__).resolve().parents[2]
 if str(ROOT_DIR) not in sys.path:
     sys.path.insert(0, str(ROOT_DIR))
 
-from server.src.server import create_app, get_engine, db_url
+from server.src.server import create_app, get_engine
 
-@pytest.fixture
-def app(mocker, tmp_path):
+@pytest.fixture(scope="session")
+def app(mocker, tmp_path_factory):
     """
     提供配置了内存数据库且已初始化表的 Flask app。
-    【绝杀方案】：直接使用 Python 字符串定义 SQLite 表结构，不再读取 tatou.sql 文件。
+    使用 StaticPool 确保内存数据库在测试期间不会丢失。
     """
     # 1. 强制 server.py 里的 db_url 使用 SQLite
     mocker.patch('server.src.server.db_url', return_value='sqlite:///:memory:')
     
     flask_app = create_app()
     
-    # 配置临时存储目录，解决 PermissionError
-    storage_dir = tmp_path / "storage_test"
-    storage_dir.mkdir(exist_ok=True)
-
+    # 2. 配置临时存储目录
+    storage_dir = tmp_path_factory.mktemp("storage_test")
+    
+    # 3. 【关键修复】创建带 StaticPool 的引擎
+    # StaticPool 确保所有线程使用同一个连接，且不会断开，防止 DB 被清空
+    test_engine = create_engine(
+        "sqlite:///:memory:", 
+        connect_args={"check_same_thread": False}, 
+        poolclass=StaticPool 
+    )
+    
     flask_app.config.update({
         "TESTING": True,
         "SQLALCHEMY_DATABASE_URI": "sqlite:///:memory:",
-        "_ENGINE": None,
-        "STORAGE_DIR": storage_dir, 
+        "_ENGINE": test_engine,  # 直接注入我们配好的引擎
+        "STORAGE_DIR": storage_dir,
     })
 
-    # 2. 直接定义 SQLite 兼容的建表语句 (不含 MySQL 特有语法)
+    # 4. 直接执行 SQLite 建表 (不再读取 tatou.sql，彻底根除语法错误)
     sqlite_schema = """
     CREATE TABLE Users (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -71,10 +79,9 @@ def app(mocker, tmp_path):
     );
     """
 
-    # 3. 执行建表
+    # 初始化数据库
     with flask_app.app_context():
-        engine = get_engine(flask_app)
-        with engine.begin() as conn:
+        with test_engine.begin() as conn:
             for statement in sqlite_schema.strip().split(';'):
                 if statement.strip():
                     conn.execute(text(statement))
@@ -106,9 +113,14 @@ def sample_pdf_path(tmp_path_factory):
     这能彻底解决 'cannot save with zero pages' 问题。
     """
     pdf_path = tmp_path_factory.mktemp("pdfs") / "sample.pdf"
+    
+    # 创建 PDF 并写入一页
     doc = fitz.open()
-    page = doc.new_page()  # 创建一个页面
-    page.insert_text((50, 50), "Test PDF Content")
-    doc.save(pdf_path)
+    page = doc.new_page()
+    page.insert_text((50, 50), "Test Content")
+    
+    # 【细节修复】显式转为字符串路径，防止旧版库不兼容 Path 对象
+    doc.save(str(pdf_path))
     doc.close()
+    
     return pdf_path
