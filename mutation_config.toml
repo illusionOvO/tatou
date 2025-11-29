@@ -1,0 +1,22 @@
+[cosmic-ray]
+# 指定要变异的具体文件（列出 server/src 下的所有 .py 文件；用 ls 帮你生成）
+module-path = [
+  "server/src/rmap_routes.py",
+  "server/src/server.py",
+  "server/src/watermarking_cli.py",
+  "server/src/add_after_eof.py",
+  "server/src/visible_text.py",
+  "server/src/metadata_watermark.py",
+  "server/src/watermarking_method.py",
+  "server/src/watermarking_utils.py",
+]
+
+timeout = 100.0
+excluded-modules = []
+
+# 测试命令：简短版，默认搜全项目测试（这就是为什么别人能跑）
+test-command = "pytest -q"
+
+[cosmic-ray.distributor]
+# local 模式：单机跑；想快点改成 "multiprocessing"（多核）
+name = "multiprocessing"
