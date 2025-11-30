@@ -1,12 +1,12 @@
 [mutmut]
 # 指定包含源代码的目录（只变异 src 下的代码）
-paths_to_mutate = server/src/
+paths_to_mutate = "server/src/"
 
 # 指定测试运行命令 (关键：使用 python -m 确保路径正确)
-runner = python -m pytest server/test/ -v --tb=short
+runner = "python -m pytest server/test/ -v --tb=short"
 
 # 指定测试文件所在的目录 (修正为单数 test)
-tests_dir = server/test/
+tests_dir = "server/test/"
 
 # 限制每次变异的最长运行时间 (秒)，防止死循环
 timeout = 10
