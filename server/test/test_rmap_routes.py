@@ -123,3 +123,28 @@ def test_rmap_get_link_db_insert_failure(client, mocker):
     assert resp.get_json()["result"] == "session_secret"
 
 
+def test_expand_function_paths():
+    """测试 _expand 函数的各种路径情况"""
+    from server.src.rmap_routes import _expand
+    
+    # 测试 None 输入
+    assert _expand(None) is None, "输入 None 应该返回 None"
+    
+    # 测试普通路径扩展
+    test_path = "~/test"
+    result = _expand(test_path)
+    assert result is not None
+    assert "~" not in result  # 波浪号应该被扩展
+    
+    # 测试环境变量扩展
+    import os
+    if 'HOME' in os.environ:
+        env_path = "$HOME/test"
+        result = _expand(env_path)
+        assert result is not None
+        assert "$HOME" not in result  # 环境变量应该被扩展
+    
+    # 测试普通路径（无扩展）
+    normal_path = "/tmp/test"
+    result = _expand(normal_path)
+    assert result == "/tmp/test"
