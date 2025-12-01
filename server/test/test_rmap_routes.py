@@ -165,6 +165,10 @@ def test_rmap_get_link_db_insert_success(client, mocker):
     mock_rmap = mocker.patch('server.src.rmap_routes.rmap')
     mock_rmap.handle_message2.return_value = {"result": expected_secret}
     
+    # **新增 Mock:** 模拟 _guess_identity 函数返回我们期望的身份
+    # 这样可以确保身份逻辑被正确绕过，避免回退到 'rmap'
+    mocker.patch('server.src.rmap_routes._guess_identity', return_value=expected_identity)
+
     # 2. Mock 数据库连接，捕获 INSERT 语句的参数
     mock_engine = MagicMock()
     # 模拟事务/连接对象
