@@ -3,8 +3,8 @@
 import json
 from pathlib import Path
 import pytest
-
 import server.src.watermarking_utils as wm
+from unittest import mock
 
 @pytest.fixture
 def sample_pdf(tmp_path):
@@ -68,3 +68,5 @@ def test_explore_pdf_returns_dict(sample_pdf):
     assert "id" in data
     assert "type" in data
     assert data["type"] == "Document"
+
+

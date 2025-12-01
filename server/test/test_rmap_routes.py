@@ -148,3 +148,106 @@ def test_expand_function_paths():
     normal_path = "/tmp/test"
     result = _expand(normal_path)
     assert result == "/tmp/test"
+
+
+# 放在 test_rmap_routes.py 中
+# ... 需要在文件开头引入 from unittest.mock import MagicMock
+# ... 确保你已经定义了 _get_engine (在 rmap_routes.py 中)
+
+def test_rmap_get_link_db_insert_success(client, mocker):
+    """
+    🎯 目标：验证 Versions 表插入的字段值是否正确 (消除 L167-213 的变异体)。
+    """
+    expected_secret = "a1b2c3d4e5f6g7h8i9j0k1l2m3n4o5p6"
+    expected_identity = "Group_Test"
+    
+    # 1. 模拟 RMAP 握手成功
+    mock_rmap = mocker.patch('server.src.rmap_routes.rmap')
+    mock_rmap.handle_message2.return_value = {"result": expected_secret}
+    
+    # 2. Mock 数据库连接，捕获 INSERT 语句的参数
+    mock_engine = MagicMock()
+    # 模拟事务/连接对象
+    mock_conn = mock_engine.begin.return_value.__enter__.return_value
+    mocker.patch('server.src.rmap_routes._get_engine', return_value=mock_engine)
+
+    # 3. 模拟文件和水印成功 (避免其他错误)
+    mocker.patch.dict('os.environ', {'RMAP_INPUT_PDF': '/mock/exists.pdf'})
+    mocker.patch('pathlib.Path.is_file', return_value=True)
+    mocker.patch('pathlib.Path.read_bytes', return_value=b'pdf_content')
+    mocker.patch('server.src.rmap_routes.VisibleTextWatermark.add_watermark', return_value=b'wm_content')
+    mocker.patch('server.src.rmap_routes.MetadataWatermark.add_watermark', return_value=b'wm_content')
+    mocker.patch('pathlib.Path.mkdir', return_value=None)
+    mocker.patch('pathlib.Path.write_bytes', return_value=None)
+    
+    # 4. 模拟 rmap-initiate 已经设置了身份
+    mocker.patch.object(client.application.config, 'get', side_effect=lambda k, d=None: expected_identity if k == "LAST_RMAP_IDENTITY" else d)
+
+    # 运行请求
+    resp = client.post("/api/rmap-get-link", json={"payload": "dummy"})
+    
+    # 断言 HTTP 状态码和返回的 secret
+    assert resp.status_code == 200
+    assert resp.get_json()["result"] == expected_secret
+
+    # 断言数据库 INSERT 语句被调用，并检查参数是否正确
+    mock_conn.execute.assert_called_once()
+    
+    # 获取传递给 conn.execute 的参数 (第二个参数是参数字典)
+    params = mock_conn.execute.call_args[0][1] 
+
+    # 验证插入数据库的关键字段值
+    assert params["link"] == expected_secret
+    assert params["intended_for"] == expected_identity
+    assert params["method"] == "visible+metadata"
+    # 根据 rmap_routes.py 中的实现，documentid 被设置为 secret
+    assert params["documentid"] == expected_secret
+
+
+
+    # 放在 test_rmap_routes.py 中
+from server.src.rmap_routes import WATERMARK_HMAC_KEY
+
+def test_rmap_get_link_watermark_call(client, mocker):
+    """
+    🎯 目标：测试水印方法是否被正确调用且参数正确 (L136-141)。
+    """
+    expected_secret = "correct_session_secret"
+    
+    # 1. 模拟 RMAP 握手成功
+    mock_rmap = mocker.patch('server.src.rmap_routes.rmap')
+    mock_rmap.handle_message2.return_value = {"result": expected_secret}
+
+    # 2. Mock 数据库和文件操作，专注于水印调用
+    mocker.patch('server.src.rmap_routes._get_engine', MagicMock())
+    mocker.patch.dict('os.environ', {'RMAP_INPUT_PDF': '/mock/exists.pdf'})
+    mocker.patch('pathlib.Path.is_file', return_value=True)
+    mock_read_bytes = mocker.patch('pathlib.Path.read_bytes', return_value=b'pdf_content')
+    mocker.patch('pathlib.Path.mkdir', return_value=None)
+    mocker.patch('pathlib.Path.write_bytes', return_value=None)
+    
+    # 3. 模拟 VisibleTextWatermark 和 MetadataWatermark 的 add_watermark 方法
+    mock_vt_add = mocker.patch('server.src.rmap_routes.VisibleTextWatermark.add_watermark')
+    mock_vt_add.return_value = b'watermarked_content_1'
+    mock_xmp_add = mocker.patch('server.src.rmap_routes.MetadataWatermark.add_watermark')
+    mock_xmp_add.return_value = b'watermarked_content_2'
+    
+    # 运行请求
+    resp = client.post("/api/rmap-get-link", json={"payload": "dummy"})
+    
+    assert resp.status_code == 200
+    
+    # 断言 VisibleTextWatermark 被正确调用
+    mock_vt_add.assert_called_once()
+    vt_call_args = mock_vt_add.call_args[0]
+    # 验证参数顺序: (pdf_bytes, secret, key)
+    assert vt_call_args[1] == expected_secret 
+    assert vt_call_args[2] == WATERMARK_HMAC_KEY 
+
+    # 断言 MetadataWatermark 被正确调用 (确保是叠加，即使用了上一个水印的输出)
+    mock_xmp_add.assert_called_once()
+    xmp_call_args = mock_xmp_add.call_args[0]
+    # 验证输入 PDF 是上一个水印的输出
+    assert xmp_call_args[0] == b'watermarked_content_1' 
+    assert xmp_call_args[1] == expected_secret
+    assert xmp_call_args[2] == WATERMARK_HMAC_KEY
