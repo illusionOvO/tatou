@@ -131,7 +131,7 @@ def test_cli_rejects_missing_secret(tmp_path):
     
     # 使用正确的命令，但故意缺少 --secret/-s 和 --secret-file
     cmd = [
-        sys.executable, CLI_PATH, 
+        sys.executable, "-m", CLI_PATH, 
         "apply", 
         "--pdf", str(input_pdf),
         "--method", "trailer-hmac", 

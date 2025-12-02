@@ -323,15 +323,21 @@ def test_delete_document_path_traversal_is_blocked(client, mocker):
     mocker.patch('server.src.server.get_engine', return_value=MagicMock(connect=MagicMock(return_value=MagicMock(__enter__=MagicMock(return_value=mock_conn)))))
     
     # 2. 模拟认证成功，设置 g.user
-    mocker.patch('server.src.server.require_auth', side_effect=lambda f: f)
+    # mocker.patch('server.src.server.require_auth', side_effect=lambda f: f)
     mocker.patch('flask.g', user={"id": logged_in_user_id, "login": "testuser"})
+
+    # 2. 模拟 _serializer (L328 附近)
+    # 模拟 _serializer().loads(...) 总是返回一个有效的用户字典
+    mock_serializer = mocker.patch('server.src.server._serializer')
+    # 让 loads 方法返回一个有效的用户字典，这样认证装饰器就会通过
+    mock_serializer.return_value.loads.return_value = {"uid": logged_in_user_id, "login": "testuser", "email": "a@b.com"}
 
     # 3. Mock 路径解析函数，确保它抛出异常
     mocker.patch('server.src.server._safe_resolve_under_storage', side_effect=RuntimeError("path escapes storage root"))
     
     # 4. 运行请求
-    resp = client.delete(f"/api/delete-document/{doc_id}")
-    
+    resp = client.delete(f"/api/delete-document/{doc_id}", 
+                     headers={'Authorization': 'Bearer valid-token'})    
     # 5. 断言：安全检查失败后，应该返回错误状态，数据库删除不应被调用
     # 尽管安全检查失败，但原始代码中没有明确的 try...except 块来捕获 _safe_resolve_under_storage 
     # 抛出的 RuntimeError，这可能导致 500 Internal Server Error，但安全目标是路径解析函数被调用。
