@@ -3,7 +3,7 @@ from pathlib import Path
 from server.src import rmap_routes
 from unittest.mock import MagicMock
 from sqlalchemy.exc import DBAPIError
-
+from server.src.rmap_routes import VisibleTextWatermark, MetadataWatermark
 
 
 # ---------- Tests ----------
@@ -255,3 +255,45 @@ def test_rmap_get_link_watermark_call(client, mocker):
     assert xmp_call_args[0] == b'watermarked_content_1' 
     assert xmp_call_args[1] == expected_secret
     assert xmp_call_args[2] == WATERMARK_HMAC_KEY
+
+
+def test_rmap_get_link_watermark_order(client, mocker):
+    """
+    🎯 目标：验证水印叠加顺序和数据流是否正确 (L136-143)。
+    """
+    expected_secret = "correct_session_secret"
+    
+    mocker.patch('server.src.rmap_routes.rmap.handle_message2', return_value={"result": expected_secret})
+    
+    # Mock 文件和 DB 操作 (避免 side effect)
+    mocker.patch('server.src.rmap_routes._get_engine', MagicMock())
+    mocker.patch.dict('os.environ', {'RMAP_INPUT_PDF': '/mock/exists.pdf'})
+    mocker.patch('pathlib.Path.is_file', return_value=True)
+    mocker.patch('pathlib.Path.read_bytes', return_value=b'Initial_PDF_Bytes')
+    mocker.patch('pathlib.Path.mkdir', return_value=None)
+    mocker.patch('pathlib.Path.write_bytes', return_value=None)
+    
+    # 模拟水印方法
+    mock_vt_instance = MagicMock(spec=VisibleTextWatermark)
+    mock_xmp_instance = MagicMock(spec=MetadataWatermark)
+    
+    # 注入 mock 实例
+    mocker.patch('server.src.rmap_routes.VisibleTextWatermark', return_value=mock_vt_instance)
+    mocker.patch('server.src.rmap_routes.MetadataWatermark', return_value=mock_xmp_instance)
+
+    # 模拟第一次水印输出
+    mock_vt_instance.add_watermark.return_value = b'Output_From_VT'
+    # 模拟第二次水印输出
+    mock_xmp_instance.add_watermark.return_value = b'Final_Watermarked_PDF'
+    
+    resp = client.post("/api/rmap-get-link", json={"payload": "dummy"})
+    
+    assert resp.status_code == 200
+
+    # 1. 验证 VisibleTextWatermark 使用了原始 PDF
+    mock_vt_instance.add_watermark.assert_called_once()
+    assert mock_vt_instance.add_watermark.call_args[0][0] == b'Initial_PDF_Bytes'
+
+    # 2. 验证 MetadataWatermark 使用了 VisibleTextWatermark 的输出
+    mock_xmp_instance.add_watermark.assert_called_once()
+    assert mock_xmp_instance.add_watermark.call_args[0][0] == b'Output_From_VT'
