@@ -1,4 +1,4 @@
-import pytest
+import pytest, pathlib
 from pathlib import Path
 from server.src import rmap_routes
 from unittest.mock import MagicMock, patch
@@ -368,9 +368,9 @@ def clean_rmap_routes(mocker):
 
     # **关键修复：Mock Path.is_dir()**
     # 欺骗 IdentityManager.init 中的 Path(client_keys_dir).is_dir() 检查
-    mocker.patch('pathlib.Path.is_dir', return_value=True) 
-    mocker.patch('pathlib.Path.is_file', return_value=True) # <-- 新增或替换
-    
+    mocker.patch.object(pathlib.Path, 'is_file', return_value=True)
+    mocker.patch.object(pathlib.Path, 'is_dir', return_value=True) # <-- 新增或替换
+
     mocker.patch('os.getenv', side_effect=lambda k, d: '/mock/path' if 'RMAP' in k else d)
     
     # 重新加载模块
