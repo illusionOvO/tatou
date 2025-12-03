@@ -160,3 +160,32 @@ def test_create_watermark_duplicate_link_retrieves_existing_id(client, mocker, u
     
     # 断言数据库 execute 被调用了两次
     assert mock_conn.execute.call_count == 2
+
+
+
+@pytest.fixture
+def upload_document_id(mocker, client):
+    """
+    模拟文档上传和数据库插入，返回一个有效的 document ID (999)。
+    """
+    doc_id = 999
+    logged_in_user_id = 1
+    
+    # 1. Mock 数据库执行，使其在插入时返回 doc_id
+    mock_conn = MagicMock()
+    # 模拟 conn.execute 的返回值：lastrowid
+    res_mock = MagicMock(lastrowid=doc_id)
+    mock_conn.execute.return_value = res_mock
+    
+    # 模拟查询，使其返回一个文档行
+    MockDocRow = MagicMock(id=doc_id, name="test_doc", creation="2025-01-01", sha256_hex="abc", size=1024)
+    mock_conn.execute.return_value.one.return_value = MockDocRow
+
+    mocker.patch('server.src.server.get_engine', 
+                 return_value=MagicMock(begin=MagicMock(return_value=MagicMock(__enter__=MagicMock(return_value=mock_conn)))))
+    
+    # 2. 模拟 g.user
+    mocker.patch('flask.g', user={"id": logged_in_user_id, "login": "testuser"})
+    
+    # 返回模拟的文档 ID
+    return doc_id

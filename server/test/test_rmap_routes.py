@@ -356,16 +356,22 @@ def test_config_missing_keys_dir_prevents_init(mocker):
 @pytest.fixture
 def clean_rmap_routes(mocker):
     """确保 RMAP 模块被重新加载，用于测试顶层初始化代码"""
-    # 模拟成功的环境，防止其他测试因环境被破坏而失败
+    
+    # **关键修复 1：Mock IdentityManager 以避免实际的文件系统检查**
+    mock_im = mocker.patch('server.src.rmap_routes.IdentityManager', autospec=True)
+    mocker.patch('server.src.rmap_routes.RMAP', autospec=True) # 也要 Mock RMAP
+
+    # 模拟成功的环境（用于测试中的 if/else 逻辑）
     mocker.patch('os.path.isdir', return_value=True)
     mocker.patch('os.path.isfile', return_value=True)
     mocker.patch('os.getenv', side_effect=lambda k, d: '/mock/path' if 'RMAP' in k else d)
-
+    
     # 重新加载模块
     importlib.reload(rmap_routes)
+    
     # 确保在测试结束后恢复原始环境
     yield
-    importlib.reload(rmap_routes) 
+    importlib.reload(rmap_routes)
 
 # --- 新增测试：验证所有配置路径检查 ---
 def test_rmap_config_paths_checked(clean_rmap_routes, mocker):
