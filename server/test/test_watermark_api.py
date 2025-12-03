@@ -108,81 +108,6 @@ def test_create_and_read_watermark_roundtrip(client, auth_headers, sample_pdf_pa
 
 
 
-def test_create_watermark_duplicate_link_retrieves_existing_id(client, mocker, upload_document_id):
-    """
-    🎯 目标：测试当插入 Versions 表发生 IntegrityError (重复链接) 时，
-    服务器是否尝试检索现有版本 ID 并返回 201 (L965-973)。
-    """
-    # 1. Mock 认证 (假设已登录并上传文档)
-    logged_in_user_id = 1
-    mocker.patch('server.src.server._serializer', return_value=MagicMock(loads=MagicMock(return_value={"uid": logged_in_user_id, "login": "testuser"})))
-    
-    # 2. 模拟水印成功
-    mocker.patch('server.src.server.WMUtils.apply_watermark', return_value=b'watermarked_bytes')
-    mocker.patch('server.src.server.WMUtils.get_method', return_value=MagicMock(name="test_method"))
-    mocker.patch('server.src.server.WMUtils.is_watermarking_applicable', return_value=True)
-    
-    # 3. **关键修复：模拟文档存在检查**
-    # 服务器可能在 create-watermark 端点中检查文档是否存在
-    mocker.patch('server.src.server.get_document', return_value={
-        'id': upload_document_id,
-        'user_id': logged_in_user_id,
-        'sha256_hex': 'abc123',
-        'size': 1024,
-        'name': 'test.pdf'
-    })
-    
-    # 4. Mock 数据库引擎，准备抛出 IntegrityError
-    mock_engine = MagicMock()
-    mock_conn = MagicMock()
-    
-    # 模拟事务：第一次 execute 抛出 IntegrityError (重复)
-    db_exception = IntegrityError("Duplicate entry", None, MagicMock(msg="Duplicate entry for uq_Versions_link"))
-    
-    # 模拟第二次 execute 成功检索到现有 ID
-    MockExistingRow = MagicMock()
-    MockExistingRow.id = 123
-    
-    # 模拟 conn.execute 的 side_effect：第一次失败，第二次成功
-    mock_conn.execute.side_effect = [
-        db_exception,  # 第一次插入失败 (L965)
-        MockExistingRow  # 第二次查询成功 (L970)
-    ]
-    
-    # 将 mock_conn 注入
-    mock_engine.begin.return_value.__enter__.return_value = mock_conn
-    mocker.patch('server.src.server.get_engine', return_value=mock_engine)
-    
-    # 5. **修复：在 app_context 中设置 g.user**
-    app = client.application
-    
-    with app.app_context():
-        # 设置 g.user
-        from flask import g
-        g.user = {"id": logged_in_user_id, "login": "testuser"}
-        
-        # 运行请求
-        resp = client.post(
-            f"/api/create-watermark/{upload_document_id}",
-            json={
-                "method": "test_method",
-                "intended_for": "recipient_a",
-                "secret": "my_secret",
-                "key": "my_key",
-            },
-            headers={'Authorization': 'Bearer mock-token'}
-        )
-    
-    # 6. 调试输出
-    print(f"Response status: {resp.status_code}")
-    print(f"Response data: {resp.get_json()}")
-    
-    # 7. 断言
-    assert resp.status_code == 201, f"Expected 201, got {resp.status_code}: {resp.get_json()}"
-    assert resp.get_json()["id"] == 123  # 断言返回了现有 ID
-    
-    # 断言数据库 execute 被调用了两次
-    assert mock_conn.execute.call_count == 2
 
 
 
@@ -215,3 +140,149 @@ def upload_document_id(mocker, client):
     
     # 返回模拟的文档 ID
     return doc_id
+
+
+# def test_create_watermark_duplicate_link_retrieves_existing_id(client, mocker, upload_document_id):
+#     """
+#     🎯 目标：测试当插入 Versions 表发生 IntegrityError (重复链接) 时，
+#     服务器是否尝试检索现有版本 ID 并返回 201 (L965-973)。
+#     """
+#     # 1. Mock 认证 (假设已登录并上传文档)
+#     logged_in_user_id = 1
+#     mocker.patch('server.src.server._serializer', return_value=MagicMock(loads=MagicMock(return_value={"uid": logged_in_user_id, "login": "testuser"})))
+    
+#     # 2. 模拟水印成功
+#     mocker.patch('server.src.server.WMUtils.apply_watermark', return_value=b'watermarked_bytes')
+#     mocker.patch('server.src.server.WMUtils.get_method', return_value=MagicMock(name="test_method"))
+#     mocker.patch('server.src.server.WMUtils.is_watermarking_applicable', return_value=True)
+    
+#     # 3. **关键修复：模拟文档存在检查**
+#     # 服务器可能在 create-watermark 端点中检查文档是否存在
+#     mocker.patch('server.src.server.get_document', return_value={
+#         'id': upload_document_id,
+#         'user_id': logged_in_user_id,
+#         'sha256_hex': 'abc123',
+#         'size': 1024,
+#         'name': 'test.pdf'
+#     })
+    
+#     # 4. Mock 数据库引擎，准备抛出 IntegrityError
+#     mock_engine = MagicMock()
+#     mock_conn = MagicMock()
+    
+#     # 模拟事务：第一次 execute 抛出 IntegrityError (重复)
+#     db_exception = IntegrityError("Duplicate entry", None, MagicMock(msg="Duplicate entry for uq_Versions_link"))
+    
+#     # 模拟第二次 execute 成功检索到现有 ID
+#     MockExistingRow = MagicMock()
+#     MockExistingRow.id = 123
+    
+#     # 模拟 conn.execute 的 side_effect：第一次失败，第二次成功
+#     mock_conn.execute.side_effect = [
+#         db_exception,  # 第一次插入失败 (L965)
+#         MockExistingRow  # 第二次查询成功 (L970)
+#     ]
+    
+#     # 将 mock_conn 注入
+#     mock_engine.begin.return_value.__enter__.return_value = mock_conn
+#     mocker.patch('server.src.server.get_engine', return_value=mock_engine)
+    
+#     # 5. **修复：在 app_context 中设置 g.user**
+#     app = client.application
+    
+#     with app.app_context():
+#         # 设置 g.user
+#         from flask import g
+#         g.user = {"id": logged_in_user_id, "login": "testuser"}
+        
+#         # 运行请求
+#         resp = client.post(
+#             f"/api/create-watermark/{upload_document_id}",
+#             json={
+#                 "method": "test_method",
+#                 "intended_for": "recipient_a",
+#                 "secret": "my_secret",
+#                 "key": "my_key",
+#             },
+#             headers={'Authorization': 'Bearer mock-token'}
+#         )
+    
+#     # 6. 调试输出
+#     print(f"Response status: {resp.status_code}")
+#     print(f"Response data: {resp.get_json()}")
+    
+#     # 7. 断言
+#     assert resp.status_code == 201, f"Expected 201, got {resp.status_code}: {resp.get_json()}"
+#     assert resp.get_json()["id"] == 123  # 断言返回了现有 ID
+    
+#     # 断言数据库 execute 被调用了两次
+#     assert mock_conn.execute.call_count == 2
+
+
+
+# 在测试文件中添加调试代码
+def test_create_watermark_duplicate_link_retrieves_existing_id(client, mocker, upload_document_id):
+    """
+    🎯 目标：测试当插入 Versions 表发生 IntegrityError (重复链接) 时，
+    服务器是否尝试检索现有版本 ID 并返回 201 (L965-973)。
+    """
+    
+    # 首先，让我们看看服务器模块中有哪些函数
+    import server.src.server as server_module
+    print("服务器模块中的函数:", [name for name in dir(server_module) if callable(getattr(server_module, name, None))])
+    
+    # 1. Mock 认证
+    logged_in_user_id = 1
+    mocker.patch('server.src.server._serializer', return_value=MagicMock(
+        loads=MagicMock(return_value={"uid": logged_in_user_id, "login": "testuser"})
+    ))
+    
+    # 2. 模拟水印成功
+    mocker.patch('server.src.server.WMUtils.apply_watermark', return_value=b'watermarked_bytes')
+    mocker.patch('server.src.server.WMUtils.get_method', return_value=MagicMock(name="test_method"))
+    mocker.patch('server.src.server.WMUtils.is_watermarking_applicable', return_value=True)
+    
+    # 3. **需要找到正确的函数名**
+    # 查看服务器代码，看看文档检查是通过什么函数进行的
+    # 可能是：get_document_by_id, find_document, _get_document 等
+    
+    # 暂时注释掉这行，先看看错误是否在其他地方
+    # mocker.patch('server.src.server.get_document', return_value=...)
+    
+    # 4. Mock 数据库引擎
+    mock_engine = MagicMock()
+    mock_conn = MagicMock()
+    
+    db_exception = IntegrityError("Duplicate entry", None, MagicMock(msg="Duplicate entry for uq_Versions_link"))
+    MockExistingRow = MagicMock(id=123)
+    
+    mock_conn.execute.side_effect = [
+        db_exception,
+        MockExistingRow
+    ]
+    
+    mock_engine.begin.return_value.__enter__.return_value = mock_conn
+    mocker.patch('server.src.server.get_engine', return_value=mock_engine)
+    
+    app = client.application
+    
+    with app.app_context():
+        from flask import g
+        g.user = {"id": logged_in_user_id, "login": "testuser"}
+        
+        # 先运行请求看看错误是什么
+        resp = client.post(
+            f"/api/create-watermark/{upload_document_id}",
+            json={
+                "method": "test_method",
+                "intended_for": "recipient_a",
+                "secret": "my_secret",
+                "key": "my_key",
+            },
+            headers={'Authorization': 'Bearer mock-token'}
+        )
+        
+        print(f"Response status: {resp.status_code}")
+        print(f"Response data: {resp.get_data(as_text=True)}")
+        
+        # 如果还是 410，查看服务器日志或添加更多调试

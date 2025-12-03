@@ -384,36 +384,26 @@ def test_rmap_config_paths_checked(clean_rmap_routes, mocker):
 def clean_rmap_routes(mocker):
     """确保 RMAP 模块被重新加载，用于测试顶层初始化代码"""
     
-    # 1. 先模拟文件读取，避免 PGPKey.from_file 失败
-    mock_pgp_key = MagicMock()
-    mocker.patch('pgpy.pgp.PGPKey.from_file', return_value=(mock_pgp_key, None))
+    # 1. 完全模拟 IdentityManager 类，避免任何实际的文件系统访问
+    mock_im = MagicMock()
+    mock_im.return_value = MagicMock()
     
-    # 2. Mock 整个 IdentityManager/RMAP 类
-    mock_identity_manager = MagicMock()
-    mock_identity_manager.return_value = MagicMock()
-    mocker.patch('server.src.rmap_routes.IdentityManager', mock_identity_manager)
-    
+    # 2. 完全模拟 RMAP 类
     mock_rmap = MagicMock()
+    mock_rmap.return_value = MagicMock()
+    
+    # 3. 在导入前就 patch，这样模块加载时不会执行实际的初始化
+    mocker.patch('server.src.rmap_routes.IdentityManager', mock_im)
     mocker.patch('server.src.rmap_routes.RMAP', mock_rmap)
     
-    # 3. Mock 路径检查：
+    # 4. Mock 环境变量检查函数，使其总是返回 True
     mocker.patch('os.path.isdir', return_value=True)
     mocker.patch('os.path.isfile', return_value=True)
     
-    # 4. Mock Path 方法
-    mocker.patch.object(Path, 'is_file', return_value=True)
-    mocker.patch.object(Path, 'is_dir', return_value=True)
-    
-    # 5. Mock os.getenv 返回具体的文件路径，而不是目录
-    mocker.patch('os.getenv', side_effect=lambda k, d=None: {
-        'RMAP_SERVER_PRIV': '/mock/path/server_priv.asc',
-        'RMAP_SERVER_PUB': '/mock/path/server_pub.asc',
-        'RMAP_KEYS_DIR': '/mock/path',
-        'RMAP_INPUT_PDF': '/mock/path/input.pdf'
-    }.get(k, d))
-    
-    # 6. 重新加载模块
+    # 5. 重新加载模块
     importlib.reload(rmap_routes)
     
     yield
+    
+    # 清理
     importlib.reload(rmap_routes)
