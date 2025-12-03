@@ -684,8 +684,12 @@ def test_rmap_get_link_input_pdf_not_set(client, mocker):
     mock_rmap = mocker.patch('server.src.rmap_routes.rmap')
     mock_rmap.handle_message2.return_value = {"result": "session_secret"}
     
-    # 模拟 RMAP_INPUT_PDF 为空
-    mocker.patch.dict('os.environ', {'RMAP_INPUT_PDF': ''})
+    # **关键修复**：需要模拟 os.getenv 返回空字符串
+    # 因为 RMAP_INPUT_PDF = _expand(os.getenv("RMAP_INPUT_PDF", "server/Group_16.pdf"))
+    mocker.patch('os.getenv', return_value="")
+    
+    # 还需要模拟 _expand 返回 None
+    mocker.patch('server.src.rmap_routes._expand', return_value=None)
     
     resp = client.post("/api/rmap-get-link", json={"payload": "dummy"})
     
@@ -693,6 +697,8 @@ def test_rmap_get_link_input_pdf_not_set(client, mocker):
     data = resp.get_json()
     assert "error" in data
     assert "RMAP_INPUT_PDF not set" in data["error"]
+
+
 
 def test_rmap_get_link_general_exception(client, mocker):
     """测试 rmap_get_link 的通用异常处理（覆盖211-213行）"""
@@ -707,30 +713,40 @@ def test_rmap_get_link_general_exception(client, mocker):
     assert "error" in data
     assert "rmap-get-link failed" in data["error"]
 
-def test_guess_identity_function():
+def test_guess_identity_function(mocker):
     """测试 _guess_identity 函数的各种情况"""
-    from server.src.rmap_routes import _guess_identity, CLIENT_KEYS_DIR
+    from server.src.rmap_routes import _guess_identity
     
-    # 模拟不同的目录状态
-    from unittest.mock import Mock, patch
+    # Mock CLIENT_KEYS_DIR 和它的方法
+    mock_dir = mocker.MagicMock()
+    mocker.patch('server.src.rmap_routes.CLIENT_KEYS_DIR', mock_dir)
     
-    # 测试1: 有明确的identity且文件存在
-    with patch.object(CLIENT_KEYS_DIR, 'exists', return_value=True):
-        with patch.object(CLIENT_KEYS_DIR, 'glob', return_value=[]):
-            incoming = {"identity": "Group_16"}
-            result = _guess_identity(incoming)
-            assert result == "Group_16"
+    # 情况1: 有identity且文件存在
+    mock_file = mocker.MagicMock()
+    mock_file.exists.return_value = True
+    mock_dir.__truediv__.return_value = mock_file
+    mock_dir.glob.return_value = []
     
-    # 测试2: 没有identity，但有唯一的Group文件
-    mock_group_file = Mock()
-    mock_group_file.stem = "Group_16"
-    with patch.object(CLIENT_KEYS_DIR, 'glob', return_value=[mock_group_file]):
-        incoming = {}
-        result = _guess_identity(incoming)
-        assert result == "Group_16"
+    result = _guess_identity({"identity": "Group_16"})
+    assert result == "Group_16"
     
-    # 测试3: 没有identity，也没有Group文件
-    with patch.object(CLIENT_KEYS_DIR, 'glob', return_value=[]):
-        incoming = {}
-        result = _guess_identity(incoming)
-        assert result == "rmap"
+    # 情况2: 没有identity，但有唯一的Group文件
+    mock_file2 = mocker.MagicMock()
+    mock_file2.stem = "Group_16"
+    mock_dir.glob.return_value = [mock_file2]
+    
+    result = _guess_identity({})
+    assert result == "Group_16"
+    
+    # 情况3: 没有identity，也没有Group文件
+    mock_dir.glob.return_value = []
+    
+    result = _guess_identity({})
+    assert result == "rmap"
+    
+    # 情况4: 有identity但文件不存在，有Group文件
+    mock_file.exists.return_value = False
+    mock_dir.glob.return_value = [mock_file2]
+    
+    result = _guess_identity({"identity": "NonExistent"})
+    assert result == "Group_16"
