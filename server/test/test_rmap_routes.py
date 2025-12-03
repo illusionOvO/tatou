@@ -641,3 +641,96 @@ def test_rmap_get_link_db_error_handling(client, mocker):
     # 即使数据库失败，也应该返回成功（200）
     assert resp.status_code == 200
     assert resp.get_json()["result"] == "session_secret"
+
+
+
+
+
+
+
+
+
+
+def test_rmap_initiate_error_response(client, mocker):
+    """测试 rmap_initiate 返回错误的情况（覆盖77-78行）"""
+    mock_rmap = mocker.patch('server.src.rmap_routes.rmap')
+    # 模拟返回错误
+    mock_rmap.handle_message1.return_value = {"error": "Test protocol error"}
+    
+    resp = client.post("/api/rmap-initiate", json={"payload": "test"})
+    
+    assert resp.status_code == 400
+    data = resp.get_json()
+    assert "error" in data
+    assert data["error"] == "Test protocol error"
+
+
+def test_rmap_initiate_exception_handling(client, mocker):
+    """测试 rmap_initiate 抛出异常的情况（覆盖84-88, 96行）"""
+    mock_rmap = mocker.patch('server.src.rmap_routes.rmap')
+    # 模拟抛出异常
+    mock_rmap.handle_message1.side_effect = RuntimeError("Test runtime error")
+    
+    resp = client.post("/api/rmap-initiate", json={"payload": "test"})
+    
+    assert resp.status_code == 400
+    data = resp.get_json()
+    assert "error" in data
+    assert "Test runtime error" in data["error"]
+
+
+def test_rmap_get_link_input_pdf_not_set(client, mocker):
+    """测试 RMAP_INPUT_PDF 环境变量未设置（覆盖139行）"""
+    mock_rmap = mocker.patch('server.src.rmap_routes.rmap')
+    mock_rmap.handle_message2.return_value = {"result": "session_secret"}
+    
+    # 模拟 RMAP_INPUT_PDF 为空
+    mocker.patch.dict('os.environ', {'RMAP_INPUT_PDF': ''})
+    
+    resp = client.post("/api/rmap-get-link", json={"payload": "dummy"})
+    
+    assert resp.status_code == 500
+    data = resp.get_json()
+    assert "error" in data
+    assert "RMAP_INPUT_PDF not set" in data["error"]
+
+def test_rmap_get_link_general_exception(client, mocker):
+    """测试 rmap_get_link 的通用异常处理（覆盖211-213行）"""
+    mock_rmap = mocker.patch('server.src.rmap_routes.rmap')
+    # 模拟在某个点抛出异常
+    mock_rmap.handle_message2.side_effect = ValueError("Test value error")
+    
+    resp = client.post("/api/rmap-get-link", json={"payload": "dummy"})
+    
+    assert resp.status_code == 400
+    data = resp.get_json()
+    assert "error" in data
+    assert "rmap-get-link failed" in data["error"]
+
+def test_guess_identity_function():
+    """测试 _guess_identity 函数的各种情况"""
+    from server.src.rmap_routes import _guess_identity, CLIENT_KEYS_DIR
+    
+    # 模拟不同的目录状态
+    from unittest.mock import Mock, patch
+    
+    # 测试1: 有明确的identity且文件存在
+    with patch.object(CLIENT_KEYS_DIR, 'exists', return_value=True):
+        with patch.object(CLIENT_KEYS_DIR, 'glob', return_value=[]):
+            incoming = {"identity": "Group_16"}
+            result = _guess_identity(incoming)
+            assert result == "Group_16"
+    
+    # 测试2: 没有identity，但有唯一的Group文件
+    mock_group_file = Mock()
+    mock_group_file.stem = "Group_16"
+    with patch.object(CLIENT_KEYS_DIR, 'glob', return_value=[mock_group_file]):
+        incoming = {}
+        result = _guess_identity(incoming)
+        assert result == "Group_16"
+    
+    # 测试3: 没有identity，也没有Group文件
+    with patch.object(CLIENT_KEYS_DIR, 'glob', return_value=[]):
+        incoming = {}
+        result = _guess_identity(incoming)
+        assert result == "rmap"
