@@ -185,7 +185,10 @@ def upload_document_id(mocker, client):
                  return_value=MagicMock(begin=MagicMock(return_value=MagicMock(__enter__=MagicMock(return_value=mock_conn)))))
     
     # 2. 模拟 g.user
-    mocker.patch('flask.g', user={"id": logged_in_user_id, "login": "testuser"})
+    # **关键修复：包裹在 app_context 中**
+    app = client.application
+    with app.app_context(): # <-- 解决 RuntimeError: Working outside of application context
+        mocker.patch('flask.g', user={"id": logged_in_user_id, "login": "testuser"})
     
     # 返回模拟的文档 ID
     return doc_id
