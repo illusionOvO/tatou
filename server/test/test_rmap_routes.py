@@ -1,11 +1,12 @@
 import pytest
 from pathlib import Path
 from server.src import rmap_routes
-from unittest.mock import MagicMock
+from unittest.mock import MagicMock, patch
 from sqlalchemy.exc import DBAPIError
 from server.src.rmap_routes import VisibleTextWatermark, MetadataWatermark
 import importlib
 from unittest.mock import patch # <-- 新增导入
+from server.src import rmap_routes
 
 # ---------- Tests ----------
 
@@ -349,3 +350,46 @@ def test_config_missing_keys_dir_prevents_init(mocker):
         
         # 断言正确的错误信息
         assert "RMAP_KEYS_DIR not found or not a directory:" in str(excinfo.value)
+
+
+
+@pytest.fixture
+def clean_rmap_routes(mocker):
+    """确保 RMAP 模块被重新加载，用于测试顶层初始化代码"""
+    # 模拟成功的环境，防止其他测试因环境被破坏而失败
+    mocker.patch('os.path.isdir', return_value=True)
+    mocker.patch('os.path.isfile', return_value=True)
+    mocker.patch('os.getenv', side_effect=lambda k, d: '/mock/path' if 'RMAP' in k else d)
+
+    # 重新加载模块
+    importlib.reload(rmap_routes)
+    # 确保在测试结束后恢复原始环境
+    yield
+    importlib.reload(rmap_routes) 
+
+# --- 新增测试：验证所有配置路径检查 ---
+def test_rmap_config_paths_checked(clean_rmap_routes, mocker):
+    """
+    🎯 目标：验证 RMAP 模块的路径检查 (L44-52) 不能被跳过。
+    这应该会杀死大量依赖于这些路径检查的变异体。
+    """
+    
+    # 模拟 os.path.isdir 检查失败，并重新加载模块
+    mocker.patch('os.path.isdir', return_value=False)
+    mocker.patch('os.path.isfile', return_value=True)
+
+    with pytest.raises(RuntimeError) as excinfo:
+        importlib.reload(rmap_routes)
+    
+    # 断言是 RMAP_KEYS_DIR 检查失败
+    assert "RMAP_KEYS_DIR not found or not a directory" in str(excinfo.value)
+
+    # 模拟 os.path.isdir 成功，但 RMAP_SERVER_PRIV 文件缺失
+    mocker.patch('os.path.isdir', return_value=True)
+    mocker.patch('os.path.isfile', side_effect=lambda p: False if 'server_priv.asc' in p else True)
+
+    with pytest.raises(FileNotFoundError) as excinfo:
+        importlib.reload(rmap_routes)
+    
+    # 断言是 RMAP_SERVER_PRIV 文件检查失败
+    assert "RMAP_SERVER_PRIV not found at" in str(excinfo.value)

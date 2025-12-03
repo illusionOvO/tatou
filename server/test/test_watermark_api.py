@@ -5,7 +5,9 @@ import uuid
 import os
 import sys
 import pytest
-
+from sqlalchemy.exc import IntegrityError, DBAPIError
+from flask import g
+from unittest.mock import MagicMock
 
 # 把 tatou/server 加到 sys.path，保证可以 import src.server
 THIS_DIR = os.path.dirname(__file__)
@@ -105,65 +107,56 @@ def test_create_and_read_watermark_roundtrip(client, auth_headers, sample_pdf_pa
 
 
 
+def test_create_watermark_duplicate_link_retrieves_existing_id(client, mocker, upload_document_id):
+    """
+    🎯 目标：测试当插入 Versions 表发生 IntegrityError (重复链接) 时，
+    服务器是否尝试检索现有版本 ID 并返回 201 (L965-973)。
+    """
+    # 1. Mock 认证 (假设已登录并上传文档)
+    logged_in_user_id = 1
+    mocker.patch('server.src.server._serializer', return_value=MagicMock(loads=MagicMock(return_value={"uid": logged_in_user_id, "login": "testuser"})))
+    
+    # 2. 模拟水印成功
+    mocker.patch('server.src.server.WMUtils.apply_watermark', return_value=b'watermarked_bytes')
+    mocker.patch('server.src.server.WMUtils.get_method', return_value=MagicMock(name="test_method"))
+    mocker.patch('server.src.server.WMUtils.is_watermarking_applicable', return_value=True)
 
+    # 3. Mock 数据库引擎，准备抛出 IntegrityError
+    mock_engine = MagicMock()
+    mock_conn = MagicMock()
+    
+    # 模拟事务：第一次 execute 抛出 IntegrityError (重复)
+    db_exception = IntegrityError("Duplicate entry", None, MagicMock(msg="Duplicate entry for uq_Versions_link"))
+    
+    # 模拟第二次 execute 成功检索到现有 ID
+    MockExistingRow = MagicMock(id=123)
+    
+    # 模拟 conn.execute 的 side_effect：第一次失败，第二次成功
+    mock_conn.execute.side_effect = [
+        db_exception, # 第一次插入失败 (L965)
+        MockExistingRow # 第二次查询成功 (L970)
+    ]
+    
+    # 将 mock_conn 注入
+    mock_engine.begin.return_value.__enter__.return_value = mock_conn
+    mocker.patch('server.src.server.get_engine', return_value=mock_engine)
+    mocker.patch('flask.g', user={"id": logged_in_user_id, "login": "testuser"}) # 确保 g.user 存在
 
-# def test_create_and_read_watermark_roundtrip(client):
-#     # client = app.test_client()
-#     headers = _signup_and_login(client)
+    # 4. 运行请求
+    with client.application.app_context():
+        resp = client.post(
+            f"/api/create-watermark/{upload_document_id}",
+            json={
+                "method": "test_method",
+                "intended_for": "recipient_a",
+                "secret": "my_secret",
+                "key": "my_key",
+            }
+        )
 
-#     # 1. 上传一个 PDF 文档
-#     data = {
-#         "file": (io.BytesIO(_sample_pdf_bytes()), "watermark_test.pdf"),
-#     }
-#     resp = client.post(
-#         "/api/upload-document",
-#         data=data,
-#         headers=headers,
-#         content_type="multipart/form-data",
-#     )
-#     assert resp.status_code == 201
-#     doc_id = resp.get_json()["id"]
-
-#     # 2. 从 API 拿一个可用的水印方法名
-#     resp = client.get("/api/get-watermarking-methods")  # 修正端点名称
-#     assert resp.status_code == 200
-#     methods = resp.get_json()["methods"]
-#     assert methods
-#     method_name = methods[0]["name"]
-
-#     # 3. 调用 create-watermark 创建一个水印版本
-#     secret = "unit-test-secret"
-#     key = "unit-test-key"
-
-#     resp = client.post(
-#         f"/api/create-watermark/{doc_id}",
-#         json={
-#             "method": method_name,
-#             "intended_for": "pytest",
-#             "secret": secret,
-#             "key": key,
-#             "position": None,
-#         },
-#         headers=headers,
-#     )
-#     # 注意：根据你的 server.py，create-watermark 在成功时返回 201，不是 500
-#     assert resp.status_code == 201
-#     body = resp.get_json()
-#     assert body["documentid"] == doc_id
-#     assert "id" in body
-#     assert "link" in body
-
-#     # 4. 再用 read-watermark 把 secret 读回来
-#     resp = client.post(
-#         f"/api/read-watermark/{doc_id}",
-#         json={
-#             "method": method_name,
-#             "key": key,
-#             "position": None,
-#         },
-#         headers=headers,
-#     )
-#     assert resp.status_code == 200
-#     data = resp.get_json()
-#     assert data["documentid"] == doc_id
-#     assert data["secret"] == secret
+    # 5. 断言
+    assert resp.status_code == 201
+    assert resp.get_json()["id"] == 123 # 断言返回了现有 ID
+    
+    # 断言数据库 execute 被调用了两次
+    assert mock_conn.execute.call_count == 2
