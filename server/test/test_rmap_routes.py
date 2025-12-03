@@ -1,12 +1,11 @@
-import pytest, pathlib
+import pytest, pathlib, os
 from pathlib import Path
 from server.src import rmap_routes
 from unittest.mock import MagicMock, patch
 from sqlalchemy.exc import DBAPIError
-from server.src.rmap_routes import VisibleTextWatermark, MetadataWatermark
+from server.src.rmap_routes import VisibleTextWatermark, MetadataWatermark, WATERMARK_HMAC_KEY
 import importlib
-from unittest.mock import patch # <-- 新增导入
-from server.src import rmap_routes
+
 
 # ---------- Tests ----------
 
@@ -368,8 +367,8 @@ def clean_rmap_routes(mocker):
 
     # **关键修复：Mock Path.is_dir()**
     # 欺骗 IdentityManager.init 中的 Path(client_keys_dir).is_dir() 检查
-    mocker.patch.object(pathlib.Path, 'is_file', return_value=True)
-    mocker.patch.object(pathlib.Path, 'is_dir', return_value=True) # <-- 新增或替换
+    mocker.patch.object(Path, 'is_file', return_value=True)
+    mocker.patch.object(Path, 'is_dir', return_value=True) # <-- 新增或替换
 
     mocker.patch('os.getenv', side_effect=lambda k, d: '/mock/path' if 'RMAP' in k else d)
     

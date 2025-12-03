@@ -8,6 +8,7 @@ import pytest
 from sqlalchemy.exc import IntegrityError, DBAPIError
 from flask import g
 from unittest.mock import MagicMock
+from server.src.server import create_app
 
 # 把 tatou/server 加到 sys.path，保证可以 import src.server
 THIS_DIR = os.path.dirname(__file__)
