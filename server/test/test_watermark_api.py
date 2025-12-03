@@ -121,8 +121,18 @@ def test_create_watermark_duplicate_link_retrieves_existing_id(client, mocker, u
     mocker.patch('server.src.server.WMUtils.apply_watermark', return_value=b'watermarked_bytes')
     mocker.patch('server.src.server.WMUtils.get_method', return_value=MagicMock(name="test_method"))
     mocker.patch('server.src.server.WMUtils.is_watermarking_applicable', return_value=True)
-
-    # 3. Mock 数据库引擎，准备抛出 IntegrityError
+    
+    # 3. **关键修复：模拟文档存在检查**
+    # 服务器可能在 create-watermark 端点中检查文档是否存在
+    mocker.patch('server.src.server.get_document', return_value={
+        'id': upload_document_id,
+        'user_id': logged_in_user_id,
+        'sha256_hex': 'abc123',
+        'size': 1024,
+        'name': 'test.pdf'
+    })
+    
+    # 4. Mock 数据库引擎，准备抛出 IntegrityError
     mock_engine = MagicMock()
     mock_conn = MagicMock()
     
@@ -130,21 +140,28 @@ def test_create_watermark_duplicate_link_retrieves_existing_id(client, mocker, u
     db_exception = IntegrityError("Duplicate entry", None, MagicMock(msg="Duplicate entry for uq_Versions_link"))
     
     # 模拟第二次 execute 成功检索到现有 ID
-    MockExistingRow = MagicMock(id=123)
+    MockExistingRow = MagicMock()
+    MockExistingRow.id = 123
     
     # 模拟 conn.execute 的 side_effect：第一次失败，第二次成功
     mock_conn.execute.side_effect = [
-        db_exception, # 第一次插入失败 (L965)
-        MockExistingRow # 第二次查询成功 (L970)
+        db_exception,  # 第一次插入失败 (L965)
+        MockExistingRow  # 第二次查询成功 (L970)
     ]
     
     # 将 mock_conn 注入
     mock_engine.begin.return_value.__enter__.return_value = mock_conn
     mocker.patch('server.src.server.get_engine', return_value=mock_engine)
-    mocker.patch('flask.g', user={"id": logged_in_user_id, "login": "testuser"}) # 确保 g.user 存在
-
-    # 4. 运行请求
-    with client.application.app_context():
+    
+    # 5. **修复：在 app_context 中设置 g.user**
+    app = client.application
+    
+    with app.app_context():
+        # 设置 g.user
+        from flask import g
+        g.user = {"id": logged_in_user_id, "login": "testuser"}
+        
+        # 运行请求
         resp = client.post(
             f"/api/create-watermark/{upload_document_id}",
             json={
@@ -153,13 +170,16 @@ def test_create_watermark_duplicate_link_retrieves_existing_id(client, mocker, u
                 "secret": "my_secret",
                 "key": "my_key",
             },
-            # **关键修复：添加认证头部**
             headers={'Authorization': 'Bearer mock-token'}
         )
-
-    # 5. 断言
-    assert resp.status_code == 201
-    assert resp.get_json()["id"] == 123 # 断言返回了现有 ID
+    
+    # 6. 调试输出
+    print(f"Response status: {resp.status_code}")
+    print(f"Response data: {resp.get_json()}")
+    
+    # 7. 断言
+    assert resp.status_code == 201, f"Expected 201, got {resp.status_code}: {resp.get_json()}"
+    assert resp.get_json()["id"] == 123  # 断言返回了现有 ID
     
     # 断言数据库 execute 被调用了两次
     assert mock_conn.execute.call_count == 2
