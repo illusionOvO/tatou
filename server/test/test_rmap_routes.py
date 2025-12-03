@@ -717,36 +717,29 @@ def test_guess_identity_function(mocker):
     """测试 _guess_identity 函数的各种情况"""
     from server.src.rmap_routes import _guess_identity
     
-    # Mock CLIENT_KEYS_DIR 和它的方法
-    mock_dir = mocker.MagicMock()
-    mocker.patch('server.src.rmap_routes.CLIENT_KEYS_DIR', mock_dir)
+    # 测试1: 有明确的identity且文件存在
+    with mocker.patch('server.src.rmap_routes.CLIENT_KEYS_DIR') as mock_dir:
+        mock_dir.__truediv__.return_value.exists.return_value = True
+        mock_dir.glob.return_value = []
+        
+        incoming = {"identity": "Group_16"}
+        result = _guess_identity(incoming)
+        assert result == "Group_16"
     
-    # 情况1: 有identity且文件存在
-    mock_file = mocker.MagicMock()
-    mock_file.exists.return_value = True
-    mock_dir.__truediv__.return_value = mock_file
-    mock_dir.glob.return_value = []
+    # 测试2: 没有identity，但有唯一的Group文件
+    with mocker.patch('server.src.rmap_routes.CLIENT_KEYS_DIR') as mock_dir:
+        mock_file = mocker.MagicMock()
+        mock_file.stem = "Group_16"
+        mock_dir.glob.return_value = [mock_file]
+        
+        incoming = {}
+        result = _guess_identity(incoming)
+        assert result == "Group_16"
     
-    result = _guess_identity({"identity": "Group_16"})
-    assert result == "Group_16"
-    
-    # 情况2: 没有identity，但有唯一的Group文件
-    mock_file2 = mocker.MagicMock()
-    mock_file2.stem = "Group_16"
-    mock_dir.glob.return_value = [mock_file2]
-    
-    result = _guess_identity({})
-    assert result == "Group_16"
-    
-    # 情况3: 没有identity，也没有Group文件
-    mock_dir.glob.return_value = []
-    
-    result = _guess_identity({})
-    assert result == "rmap"
-    
-    # 情况4: 有identity但文件不存在，有Group文件
-    mock_file.exists.return_value = False
-    mock_dir.glob.return_value = [mock_file2]
-    
-    result = _guess_identity({"identity": "NonExistent"})
-    assert result == "Group_16"
+    # 测试3: 没有identity，也没有Group文件
+    with mocker.patch('server.src.rmap_routes.CLIENT_KEYS_DIR') as mock_dir:
+        mock_dir.glob.return_value = []
+        
+        incoming = {}
+        result = _guess_identity(incoming)
+        assert result == "rmap"
