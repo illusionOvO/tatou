@@ -315,17 +315,18 @@ def test_delete_document_path_traversal_is_blocked(client, mocker):
     logged_in_user_id = 1
     
     # 1. 模拟数据库返回一个恶意的文件路径，但属于当前用户
-    malicious_path = "../../../etc/flag" # 相对路径逃逸
+    malicious_path = "../../../etc/flag" # 相对路径逃逸ssssssssss
     mock_row = MagicMock(id=doc_id, path=malicious_path)
-    
+
     mock_conn = MagicMock()
     mock_conn.execute.return_value.first.return_value = mock_row
+
     mocker.patch('server.src.server.get_engine', return_value=MagicMock(connect=MagicMock(return_value=MagicMock(__enter__=MagicMock(return_value=mock_conn)))))
     
     # 2. 模拟认证成功，设置 g.user
     # mocker.patch('server.src.server.require_auth', side_effect=lambda f: f)
-    mocker.patch('flask.g', user={"id": logged_in_user_id, "login": "testuser"})
-
+    # mocker.patch('flask.g', user={"id": logged_in_user_id, "login": "testuser"})
+    app = client.application
     # 2. 模拟 _serializer (L328 附近)
     # 模拟 _serializer().loads(...) 总是返回一个有效的用户字典
     mock_serializer = mocker.patch('server.src.server._serializer')
@@ -336,15 +337,20 @@ def test_delete_document_path_traversal_is_blocked(client, mocker):
     mocker.patch('server.src.server._safe_resolve_under_storage', side_effect=RuntimeError("path escapes storage root"))
     
     # 4. 运行请求
-    resp = client.delete(f"/api/delete-document/{doc_id}", 
-                     headers={'Authorization': 'Bearer valid-token'})    
+    with app.app_context(): # <-- 解决 RuntimeError: Working outside of application context
+        resp = client.delete(
+            f"/api/delete-document/{doc_id}", 
+            headers={'Authorization': 'Bearer valid-token'}
+        )   
+
+
     # 5. 断言：安全检查失败后，应该返回错误状态，数据库删除不应被调用
     # 尽管安全检查失败，但原始代码中没有明确的 try...except 块来捕获 _safe_resolve_under_storage 
     # 抛出的 RuntimeError，这可能导致 500 Internal Server Error，但安全目标是路径解析函数被调用。
 
     # 我们测试预期路径：_safe_resolve_under_storage 抛出异常，阻止文件删除和数据库操作。
     assert resp.status_code == 500 or resp.status_code == 404 # 确保没有成功删除
-    
+    assert "document path invalid" in resp.get_json()["error"] # <-- 根据 server.py L750 附近的错误信息判断
     # 确保数据库的 DELETE 语句没有被执行 (因为它是在获取行之后，在文件系统操作之后)
     # 由于原始代码结构，如果 _safe_resolve_under_storage 失败，它会跳过文件删除和 DB DELETE。
     mock_conn.begin.return_value.__enter__.return_value.execute.assert_not_called()

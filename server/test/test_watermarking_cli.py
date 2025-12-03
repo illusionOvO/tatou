@@ -120,7 +120,7 @@ def test_cli_extract_wrong_key(tmp_path, sample_pdf):
 
 
 # 确保你能访问 CLI 脚本的路径
-CLI_PATH = "server/src/watermarking_cli.py" 
+CLI_MODULE_NAME = "server.src.watermarking_cli" # <-- 新的模块名定义
 
 def test_cli_rejects_missing_secret(tmp_path):
     """
@@ -131,7 +131,7 @@ def test_cli_rejects_missing_secret(tmp_path):
     
     # 使用正确的命令，但故意缺少 --secret/-s 和 --secret-file
     cmd = [
-        sys.executable, "-m", CLI_PATH, 
+        sys.executable, "-m", CLI_MODULE_NAME, 
         "apply", 
         "--pdf", str(input_pdf),
         "--method", "trailer-hmac", 
