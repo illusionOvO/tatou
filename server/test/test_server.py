@@ -58,7 +58,10 @@
 #         assert response.status_code == 400
 
 
-# test_server.py
+
+
+
+# server/test/test_server.py
 import tempfile
 import pytest
 import io
@@ -73,9 +76,10 @@ sys.path.append(os.path.join(os.path.dirname(__file__), '..', 'src'))
 
 # 导入 server 模块
 from server.src import server
-from server.src.server import create_app, _safe_resolve_under_storage, _sha256_file
+from server.src.server import _safe_resolve_under_storage, _sha256_file
 
 
+# 使用 conftest.py 中的 app fixture
 def test_safe_resolve_under_storage():
     """测试路径安全解析功能"""
     from pathlib import Path
@@ -99,193 +103,110 @@ def test_safe_resolve_under_storage():
             _safe_resolve_under_storage("../../../etc/passwd", storage_root)
 
 
-def test_upload_document_file_validation():
-    """测试文件上传的验证逻辑"""
-    app = create_app()
-    app.config['TESTING'] = True
-    
-    with app.test_client() as client:
-        # 测试非PDF文件
-        data = {
-            'file': (io.BytesIO(b'not a pdf'), 'test.txt')
-        }
-        headers = {'Authorization': 'Bearer test-token'}
-        
-        # 使用 mock 绕过 token 验证
-        with patch('server.src.server._serializer') as mock_serializer:
-            mock_serializer.return_value.loads.return_value = {
-                "uid": 1, 
-                "login": "testuser", 
-                "email": "a@b.com"
-            }
-            
-            response = client.post('/api/upload-document', 
-                                 data=data, 
-                                 headers=headers,
-                                 content_type='multipart/form-data')
-            assert response.status_code == 400
-            response_data = json.loads(response.data)
-            assert 'only PDF files are allowed' in response_data.get('error', '')
-
-
-def test_upload_empty_file():
-    """测试上传空文件"""
-    app = create_app()
-    app.config['TESTING'] = True
-    
-    with app.test_client() as client:
-        data = {
-            'file': (io.BytesIO(b''), 'empty.pdf')
-        }
-        headers = {'Authorization': 'Bearer test-token'}
-        
-        with patch('server.src.server._serializer') as mock_serializer:
-            mock_serializer.return_value.loads.return_value = {
-                "uid": 1, 
-                "login": "testuser", 
-                "email": "a@b.com"
-            }
-            
-            response = client.post('/api/upload-document', 
-                                 data=data, 
-                                 headers=headers,
-                                 content_type='multipart/form-data')
-            assert response.status_code == 400
-
-
-def test_upload_invalid_pdf_header():
-    """测试无效的 PDF 文件头"""
-    app = create_app()
-    app.config['TESTING'] = True
-    
-    with app.test_client() as client:
-        data = {
-            'file': (io.BytesIO(b'NOT%PDF-1.4'), 'invalid.pdf')
-        }
-        headers = {'Authorization': 'Bearer test-token'}
-        
-        with patch('server.src.server._serializer') as mock_serializer:
-            mock_serializer.return_value.loads.return_value = {
-                "uid": 1, 
-                "login": "testuser", 
-                "email": "a@b.com"
-            }
-            
-            response = client.post('/api/upload-document', 
-                                 data=data, 
-                                 headers=headers,
-                                 content_type='multipart/form-data')
-            assert response.status_code == 400
-            response_data = json.loads(response.data)
-            assert 'not a valid PDF' in response_data.get('error', '')
-
-
-def test_create_user_missing_fields():
-    """测试创建用户缺少必填字段"""
-    app = create_app()
-    app.config['TESTING'] = True
-    
-    with app.test_client() as client:
-        # 测试缺少 email
-        response = client.post('/api/create-user', 
-                             json={"login": "test", "password": "pass"})
-        assert response.status_code == 400
-        
-        # 测试缺少 login
-        response = client.post('/api/create-user', 
-                             json={"email": "test@example.com", "password": "pass"})
-        assert response.status_code == 400
-        
-        # 测试缺少 password
-        response = client.post('/api/create-user', 
-                             json={"email": "test@example.com", "login": "test"})
-        assert response.status_code == 400
-
-
-def test_login_missing_credentials():
-    """测试登录缺少凭证"""
-    app = create_app()
-    app.config['TESTING'] = True
-    
-    with app.test_client() as client:
-        # 测试缺少 email
-        response = client.post('/api/login', 
-                             json={"password": "pass"})
-        assert response.status_code == 400
-        
-        # 测试缺少 password
-        response = client.post('/api/login', 
-                             json={"email": "test@example.com"})
-        assert response.status_code == 400
-
-
-def test_health_check():
-    """测试健康检查端点"""
-    app = create_app()
-    app.config['TESTING'] = True
-    
-    with app.test_client() as client:
-        response = client.get('/healthz')
-        assert response.status_code == 200
-        response_data = json.loads(response.data)
-        assert 'message' in response_data
-        assert 'db_connected' in response_data
-
-
-def test_get_document_not_found():
+# 使用 app 和 client fixtures
+def test_get_document_not_found(client, auth_headers):
     """测试获取不存在的文档"""
-    app = create_app()
-    app.config['TESTING'] = True
-    
-    with app.test_client() as client:
-        with patch('server.src.server._serializer') as mock_serializer:
-            mock_serializer.return_value.loads.return_value = {
-                "uid": 1, 
-                "login": "testuser", 
-                "email": "a@b.com"
-            }
-            
-            response = client.get('/api/get-document/999', 
-                                headers={'Authorization': 'Bearer test-token'})
-            assert response.status_code == 404
+    response = client.get('/api/get-document/999', headers=auth_headers)
+    assert response.status_code == 404
 
 
-def test_delete_document_missing_id():
+def test_delete_document_missing_id(client, auth_headers):
     """测试删除文档缺少ID"""
-    app = create_app()
-    app.config['TESTING'] = True
+    response = client.delete('/api/delete-document', headers=auth_headers)
+    assert response.status_code == 400
+
+
+def test_upload_document_file_validation(client, auth_headers):
+    """测试文件上传的验证逻辑"""
+    # 测试非PDF文件
+    data = {
+        'file': (io.BytesIO(b'not a pdf'), 'test.txt')
+    }
     
-    with app.test_client() as client:
-        with patch('server.src.server._serializer') as mock_serializer:
-            mock_serializer.return_value.loads.return_value = {
-                "uid": 1, 
-                "login": "testuser", 
-                "email": "a@b.com"
-            }
-            
-            response = client.delete('/api/delete-document', 
-                                   headers={'Authorization': 'Bearer test-token'})
-            assert response.status_code == 400
+    response = client.post('/api/upload-document', 
+                         data=data, 
+                         headers=auth_headers,
+                         content_type='multipart/form-data')
+    assert response.status_code == 400
+    response_data = json.loads(response.data)
+    assert 'only PDF files are allowed' in response_data.get('error', '')
 
 
-def test_create_watermark_missing_params():
+def test_upload_empty_file(client, auth_headers):
+    """测试上传空文件"""
+    data = {
+        'file': (io.BytesIO(b''), 'empty.pdf')
+    }
+    
+    response = client.post('/api/upload-document', 
+                         data=data, 
+                         headers=auth_headers,
+                         content_type='multipart/form-data')
+    assert response.status_code == 400
+
+
+def test_upload_invalid_pdf_header(client, auth_headers):
+    """测试无效的 PDF 文件头"""
+    data = {
+        'file': (io.BytesIO(b'NOT%PDF-1.4'), 'invalid.pdf')
+    }
+    
+    response = client.post('/api/upload-document', 
+                         data=data, 
+                         headers=auth_headers,
+                         content_type='multipart/form-data')
+    assert response.status_code == 400
+    response_data = json.loads(response.data)
+    assert 'not a valid PDF' in response_data.get('error', '')
+
+
+def test_create_user_missing_fields(client):
+    """测试创建用户缺少必填字段"""
+    # 测试缺少 email
+    response = client.post('/api/create-user', 
+                         json={"login": "test", "password": "pass"})
+    assert response.status_code == 400
+    
+    # 测试缺少 login
+    response = client.post('/api/create-user', 
+                         json={"email": "test@example.com", "password": "pass"})
+    assert response.status_code == 400
+    
+    # 测试缺少 password
+    response = client.post('/api/create-user', 
+                         json={"email": "test@example.com", "login": "test"})
+    assert response.status_code == 400
+
+
+def test_login_missing_credentials(client):
+    """测试登录缺少凭证"""
+    # 测试缺少 email
+    response = client.post('/api/login', 
+                         json={"password": "pass"})
+    assert response.status_code == 400
+    
+    # 测试缺少 password
+    response = client.post('/api/login', 
+                         json={"email": "test@example.com"})
+    assert response.status_code == 400
+
+
+def test_health_check(client):
+    """测试健康检查端点"""
+    response = client.get('/healthz')
+    assert response.status_code == 200
+    response_data = json.loads(response.data)
+    assert 'message' in response_data
+    assert 'db_connected' in response_data
+
+
+def test_create_watermark_missing_params(client, auth_headers):
     """测试创建水印缺少参数"""
-    app = create_app()
-    app.config['TESTING'] = True
-    
-    with app.test_client() as client:
-        with patch('server.src.server._serializer') as mock_serializer:
-            mock_serializer.return_value.loads.return_value = {
-                "uid": 1, 
-                "login": "testuser", 
-                "email": "a@b.com"
-            }
-            
-            # 测试缺少必要参数
-            response = client.post('/api/create-watermark', 
-                                 json={},
-                                 headers={'Authorization': 'Bearer test-token'})
-            assert response.status_code == 400
+    # 测试缺少必要参数
+    response = client.post('/api/create-watermark', 
+                         json={},
+                         headers=auth_headers)
+    assert response.status_code == 400
 
 
 def test_sha256_file():
@@ -306,82 +227,73 @@ def test_sha256_file():
             file_path.unlink()
 
 
-def test_unauthorized_access():
+def test_unauthorized_access(client):
     """测试未授权访问"""
-    app = create_app()
-    app.config['TESTING'] = True
+    # 测试没有 token
+    response = client.get('/api/list-documents')
+    assert response.status_code == 401
     
-    with app.test_client() as client:
-        # 测试没有 token
-        response = client.get('/api/list-documents')
-        assert response.status_code == 401
-        
-        # 测试无效 token
-        response = client.get('/api/list-documents', 
-                            headers={'Authorization': 'Bearer invalid-token'})
-        assert response.status_code == 401
+    # 测试无效 token
+    response = client.get('/api/list-documents', 
+                        headers={'Authorization': 'Bearer invalid-token'})
+    assert response.status_code == 401
 
 
-def test_static_files():
+def test_static_files(client):
     """测试静态文件服务"""
-    app = create_app()
-    app.config['TESTING'] = True
+    # 测试首页
+    response = client.get('/')
+    assert response.status_code in [200, 404]  # 如果 index.html 不存在可能是 404
     
-    with app.test_client() as client:
-        # 测试首页
-        response = client.get('/')
-        assert response.status_code in [200, 404]  # 如果 index.html 不存在可能是 404
-        
-        # 测试静态文件路径
-        response = client.get('/static/some-file')
-        assert response.status_code == 404  # 文件不存在
+    # 测试静态文件路径
+    response = client.get('/static/some-file')
+    assert response.status_code == 404  # 文件不存在
 
 
-def test_upload_document_missing_file():
+def test_upload_document_missing_file(client, auth_headers):
     """测试上传文档缺少文件"""
-    app = create_app()
-    app.config['TESTING'] = True
-    
-    with app.test_client() as client:
-        with patch('server.src.server._serializer') as mock_serializer:
-            mock_serializer.return_value.loads.return_value = {
-                "uid": 1, 
-                "login": "testuser", 
-                "email": "a@b.com"
-            }
-            
-            response = client.post('/api/upload-document', 
-                                 data={},
-                                 headers={'Authorization': 'Bearer test-token'},
-                                 content_type='multipart/form-data')
-            assert response.status_code == 400
-            response_data = json.loads(response.data)
-            assert 'file is required' in response_data.get('error', '')
+    response = client.post('/api/upload-document', 
+                         data={},
+                         headers=auth_headers,
+                         content_type='multipart/form-data')
+    assert response.status_code == 400
+    response_data = json.loads(response.data)
+    assert 'file is required' in response_data.get('error', '')
 
 
-def test_upload_document_empty_filename():
+def test_upload_document_empty_filename(client, auth_headers):
     """测试上传文档文件名为空"""
-    app = create_app()
-    app.config['TESTING'] = True
+    data = {
+        'file': (io.BytesIO(b'%PDF-1.4\ntest'), '')
+    }
+    response = client.post('/api/upload-document', 
+                         data=data,
+                         headers=auth_headers,
+                         content_type='multipart/form-data')
+    assert response.status_code == 400
+    response_data = json.loads(response.data)
+    assert 'empty filename' in response_data.get('error', '')
+
+
+def test_upload_valid_pdf(client, auth_headers, sample_pdf_path):
+    """测试上传有效的 PDF 文件"""
+    with open(sample_pdf_path, 'rb') as f:
+        pdf_content = f.read()
     
-    with app.test_client() as client:
-        with patch('server.src.server._serializer') as mock_serializer:
-            mock_serializer.return_value.loads.return_value = {
-                "uid": 1, 
-                "login": "testuser", 
-                "email": "a@b.com"
-            }
-            
-            data = {
-                'file': (io.BytesIO(b'%PDF-1.4\ntest'), '')
-            }
-            response = client.post('/api/upload-document', 
-                                 data=data,
-                                 headers={'Authorization': 'Bearer test-token'},
-                                 content_type='multipart/form-data')
-            assert response.status_code == 400
-            response_data = json.loads(response.data)
-            assert 'empty filename' in response_data.get('error', '')
+    data = {
+        'file': (io.BytesIO(pdf_content), 'test.pdf')
+    }
+    
+    response = client.post('/api/upload-document', 
+                         data=data,
+                         headers=auth_headers,
+                         content_type='multipart/form-data')
+    
+    # 应该是成功创建
+    assert response.status_code == 201
+    response_data = json.loads(response.data)
+    assert 'id' in response_data
+    assert 'sha256' in response_data
 
 
 if __name__ == '__main__':

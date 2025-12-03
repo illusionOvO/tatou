@@ -8,6 +8,8 @@ import fitz  # PyMuPDF
 import binascii
 from unittest.mock import patch
 import os
+import tempfile
+
 sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
 
 
