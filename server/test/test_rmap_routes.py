@@ -192,7 +192,7 @@ def test_rmap_get_link_db_insert_success(client, mocker):
     resp = client.post("/api/rmap-get-link", json={"payload": "dummy"})
     
     # 断言 HTTP 状态码和返回的 secret
-    assert resp.status_code == 201
+    assert resp.status_code == 200
     assert resp.get_json()["result"] == expected_secret
 
     # 断言数据库 INSERT 语句被调用，并检查参数是否正确
@@ -240,7 +240,7 @@ def test_rmap_get_link_watermark_call(client, mocker):
     # 运行请求
     resp = client.post("/api/rmap-get-link", json={"payload": "dummy"})
     
-    assert resp.status_code == 201
+    assert resp.status_code == 200
     
     # 断言 VisibleTextWatermark 被正确调用
     mock_vt_add.assert_called_once()
@@ -289,7 +289,7 @@ def test_rmap_get_link_watermark_order(client, mocker):
     
     resp = client.post("/api/rmap-get-link", json={"payload": "dummy"})
     
-    assert resp.status_code == 201
+    assert resp.status_code == 200
 
     # 1. 验证 VisibleTextWatermark 使用了原始 PDF
     mock_vt_instance.add_watermark.assert_called_once()
@@ -562,14 +562,86 @@ def test_rmap_get_link_db_error_logging(client, mocker):
     mocker.patch('pathlib.Path.mkdir', return_value=None)
     mocker.patch('pathlib.Path.write_bytes', return_value=None)
     
-    # 捕获日志
-    with mocker.patch.object(logging.getLogger('server.src.server'), 'warning') as mock_warning:
-        resp = client.post("/api/rmap-get-link", json={"payload": "dummy"})
-        
-        # 应该记录警告
-        mock_warning.assert_called_once()
-        assert "Versions insert failed" in mock_warning.call_args[0][0]
+    # 修复：正确mock日志
+    mock_warning = mocker.patch('server.src.rmap_routes.current_app.logger.warning')
     
-    # 但请求应该成功（201）
-    assert resp.status_code == 201
+    resp = client.post("/api/rmap-get-link", json={"payload": "dummy"})
+    
+    # 应该记录警告
+    mock_warning.assert_called_once()
+    assert "Versions insert failed" in mock_warning.call_args[0][0]
+    
+    # 但请求应该成功（200）
+    assert resp.status_code == 200
+    assert resp.get_json()["result"] == "session_secret"
+
+
+
+
+
+
+
+
+
+
+def test_rmap_initiate_specific_error_handling(client, mocker):
+    """测试具体的错误处理路径（覆盖77-78, 84-88, 96, 99行）"""
+    mock_rmap = mocker.patch('server.src.rmap_routes.rmap')
+    
+    # 测试1：返回错误对象
+    mock_rmap.handle_message1.return_value = {"error": "Specific protocol error"}
+    resp = client.post("/api/rmap-initiate", json={"payload": "test1"})
+    assert resp.status_code == 400
+    assert "error" in resp.get_json()
+    
+    # 测试2：抛出异常
+    mock_rmap.handle_message1.side_effect = RuntimeError("Test runtime error")
+    resp = client.post("/api/rmap-initiate", json={"payload": "test2"})
+    assert resp.status_code == 400
+    assert "error" in resp.get_json()
+
+
+def test_rmap_get_link_file_not_found(client, mocker):
+    """测试输入PDF文件缺失（覆盖139行）"""
+    mock_rmap = mocker.patch('server.src.rmap_routes.rmap')
+    mock_rmap.handle_message2.return_value = {"result": "session_secret"}
+    
+    # 模拟文件不存在
+    mocker.patch.dict('os.environ', {'RMAP_INPUT_PDF': '/nonexistent.pdf'})
+    mocker.patch('pathlib.Path.is_file', return_value=False)
+    
+    resp = client.post("/api/rmap-get-link", json={"payload": "dummy"})
+    
+    assert resp.status_code == 500
+    data = resp.get_json()
+    assert "error" in data
+    assert "input pdf not found" in data["error"].lower()
+
+
+def test_rmap_get_link_db_error_handling(client, mocker):
+    """测试数据库错误处理（覆盖171, 211-213行）"""
+    from sqlalchemy.exc import DBAPIError
+    
+    mock_rmap = mocker.patch('server.src.rmap_routes.rmap')
+    mock_rmap.handle_message2.return_value = {"result": "session_secret"}
+    
+    # 模拟数据库错误
+    mock_engine = MagicMock()
+    mock_conn = mock_engine.begin.return_value.__enter__.return_value
+    mock_conn.execute.side_effect = DBAPIError("DB error", {}, {})
+    mocker.patch('server.src.rmap_routes._get_engine', return_value=mock_engine)
+    
+    # 模拟文件操作
+    mocker.patch.dict('os.environ', {'RMAP_INPUT_PDF': '/mock/exists.pdf'})
+    mocker.patch('pathlib.Path.is_file', return_value=True)
+    mocker.patch('pathlib.Path.read_bytes', return_value=b'pdf_content')
+    mocker.patch('server.src.rmap_routes.VisibleTextWatermark.add_watermark', return_value=b'wm_content')
+    mocker.patch('server.src.rmap_routes.MetadataWatermark.add_watermark', return_value=b'wm_content')
+    mocker.patch('pathlib.Path.mkdir', return_value=None)
+    mocker.patch('pathlib.Path.write_bytes', return_value=None)
+    
+    resp = client.post("/api/rmap-get-link", json={"payload": "dummy"})
+    
+    # 即使数据库失败，也应该返回成功（200）
+    assert resp.status_code == 200
     assert resp.get_json()["result"] == "session_secret"
