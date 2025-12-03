@@ -209,3 +209,51 @@ def test_create_watermark_duplicate_link_retrieves_existing_id(client, mocker, u
         print(f"Response data: {resp.get_data(as_text=True)}")
         
         # 如果还是 410，查看服务器日志或添加更多调试
+
+
+def test_create_watermark_response_structure(client, auth_headers, sample_pdf_path):
+    """测试创建水印的响应结构包含正确的字段"""
+    # 1. 上传文档
+    r = client.post(
+        "/api/upload-document",
+        data={"file": (io.BytesIO(sample_pdf_path.read_bytes()), "clean.pdf")},
+        headers=auth_headers,
+        content_type="multipart/form-data",
+    )
+    doc_id = r.get_json()["id"]
+    
+    # 2. 创建水印
+    r = client.post(
+        f"/api/create-watermark/{doc_id}",
+        headers=auth_headers,
+        json={
+            "method": "trailer-hmac",
+            "intended_for": "test",
+            "secret": "test-secret",
+            "key": "test-key",
+            "position": "eof"
+        }
+    )
+    
+    assert r.status_code == 201
+    
+    # 3. 验证响应结构
+    response_json = r.get_json()
+    
+    # 必须包含这些字段
+    required_fields = ["id", "documentid", "link", "intended_for", "method"]
+    for field in required_fields:
+        assert field in response_json, f"Response missing required field: {field}"
+    
+    # 验证字段类型
+    assert isinstance(response_json["id"], int)
+    assert isinstance(response_json["documentid"], int)
+    assert isinstance(response_json["link"], str)
+    assert isinstance(response_json["intended_for"], str)
+    assert isinstance(response_json["method"], str)
+    
+    # 验证 documentid 匹配
+    assert response_json["documentid"] == doc_id
+    
+    # 验证 link 不是空的
+    assert len(response_json["link"]) > 0

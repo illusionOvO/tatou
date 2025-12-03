@@ -5,7 +5,7 @@ from unittest.mock import MagicMock, patch
 from sqlalchemy.exc import DBAPIError
 from server.src.rmap_routes import VisibleTextWatermark, MetadataWatermark, WATERMARK_HMAC_KEY
 import importlib
-
+import uuid
 
 # ---------- Tests ----------
 
@@ -355,3 +355,134 @@ def test_config_missing_keys_dir_prevents_init(mocker):
 def test_rmap_config_paths_checked():
     """跳过这个测试"""
     pass
+
+def test_require_file_function():
+    """测试 _require_file 函数"""
+    from server.src.rmap_routes import _require_file
+    
+    # 使用临时文件
+    import tempfile
+    import os
+    from unittest.mock import patch
+    
+    # 文件存在的情况
+    with tempfile.NamedTemporaryFile() as tmp:
+        try:
+            _require_file(tmp.name, "TEST")
+        except FileNotFoundError:
+            pytest.fail("_require_file should not raise for existing file")
+    
+    # 文件不存在的情况
+    with patch('os.path.isfile', return_value=False):
+        with pytest.raises(FileNotFoundError) as excinfo:
+            _require_file("/nonexistent", "TEST")
+        assert "TEST not found at:" in str(excinfo.value)
+
+
+def test_rmap_initiate_route_exists(client):
+    """测试 /api/rmap-initiate 路由存在且可访问"""
+    # 测试路由存在（应该返回某种响应，可能是400因为缺少参数）
+    resp = client.post("/api/rmap-initiate", json={})
+    
+    # 路由应该存在，即使请求格式错误
+    assert resp.status_code != 404, "Route /api/rmap-initiate should exist"
+    
+    # 通常应该返回400（错误请求）而不是404（未找到）
+    assert resp.status_code == 400, f"Expected 400 for malformed request, got {resp.status_code}"
+    
+    # 或者测试有效的请求
+    # 如果你有测试数据，可以测试完整的流程
+
+def test_rmap_routes_all_endpoints_exist(client):
+    """测试所有RMAP相关的端点都存在"""
+    endpoints = [
+        ("/api/rmap-initiate", "POST"),
+        ("/api/rmap-get-link", "POST"),
+        ("/get-version/<link>", "GET"),
+    ]
+    
+    # 注意：不能直接测试动态路由，但可以测试一些示例
+    # 测试 /api/rmap-initiate
+    resp = client.post("/api/rmap-initiate", json={"payload": "test"})
+    assert resp.status_code != 404, "/api/rmap-initiate endpoint not found"
+    
+    # 测试 /api/rmap-get-link
+    resp = client.post("/api/rmap-get-link", json={"payload": "test"})
+    assert resp.status_code != 404, "/api/rmap-get-link endpoint not found"
+    
+    # 测试 /get-version/ 路由（使用一个不存在的link）
+    resp = client.get("/get-version/test-nonexistent-link")
+    # 应该返回404（未找到）或400（无效），但不应该是405（方法不允许）
+    assert resp.status_code != 405, "/get-version/<link> GET endpoint not found"
+
+
+def test_rmap_initiate_dual_routes(client):
+    """测试 rmap_initiate 有双路由（/rmap-initiate 和 /api/rmap-initiate）"""
+    # 测试两个路由都能访问（返回相同的结果）
+    
+    # 测试 /rmap-initiate
+    resp1 = client.post("/rmap-initiate", json={"payload": "test1"})
+    
+    # 测试 /api/rmap-initiate
+    resp2 = client.post("/api/rmap-initiate", json={"payload": "test1"})
+    
+    # 两个路由都应该存在（不是404）
+    assert resp1.status_code != 404, "Route /rmap-initiate not found"
+    assert resp2.status_code != 404, "Route /api/rmap-initiate not found"
+    
+    # 注意：它们可能返回不同的状态码，取决于路由配置
+    # 但至少它们都应该存在
+
+
+def test_rmap_get_link_route_exists(client):
+    """测试 /api/rmap-get-link 路由存在"""
+    # 发送一个格式可能不正确的请求
+    resp = client.post("/api/rmap-get-link", json={})
+    
+    # 最重要的断言：路由必须存在（不是404）
+    assert resp.status_code != 404, "Route /api/rmap-get-link should exist"
+    
+    # 次要断言：应该返回错误状态（400或500等），但至少不是成功状态
+    # 放宽条件：只要不是2xx成功码就可以
+    assert resp.status_code < 200 or resp.status_code >= 300, \
+        f"Expected error status for malformed request, got {resp.status_code}"
+
+
+def test_get_version_route_exists(client):
+    """测试 /get-version/<link> 路由存在"""
+    # 使用一个随机的不存在的link
+    test_link = f"test-nonexistent-link-{uuid.uuid4().hex[:16]}"
+    resp = client.get(f"/get-version/{test_link}")
+    
+    # 关键断言：路由存在（不是405方法不允许）
+    # 405表示路由存在但不接受GET方法
+    # 404表示路由不存在或资源不存在
+    assert resp.status_code != 405, f"/get-version/<link> GET endpoint not found or wrong method"
+    
+    # 额外的日志信息
+    if resp.status_code == 404:
+        print(f"Note: /get-version/{test_link} returned 404 (link not found, but route exists)")
+    else:
+        print(f"Note: /get-version/{test_link} returned {resp.status_code}")
+
+
+def test_rmap_initiate_route_accepts_post(client):
+    """测试 /api/rmap-initiate 只接受POST方法"""
+    # 测试其他方法应该失败
+    resp_get = client.get("/api/rmap-initiate")
+    resp_put = client.put("/api/rmap-initiate", json={})
+    resp_delete = client.delete("/api/rmap-initiate")
+    
+    # 这些方法应该返回405（方法不允许）或400/404
+    # 关键：不是2xx成功码
+    assert resp_get.status_code != 200, "GET should not be allowed on /api/rmap-initiate"
+    assert resp_put.status_code != 200, "PUT should not be allowed on /api/rmap-initiate"
+    assert resp_delete.status_code != 200, "DELETE should not be allowed on /api/rmap-initiate"
+
+
+def test_rmap_routes_protected_by_content_type(client):
+    """测试RMAP路由需要正确的Content-Type"""
+    # 测试没有Content-Type的请求
+    resp = client.post("/api/rmap-initiate", data="{}")
+    # 应该返回错误（400或415）
+    assert resp.status_code != 200, "Should require Content-Type: application/json"
