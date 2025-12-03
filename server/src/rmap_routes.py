@@ -26,8 +26,10 @@ from sqlalchemy import create_engine, text
 # 本地模块
 from rmap.identity_manager import IdentityManager
 from rmap.rmap import RMAP
-from .visible_text import VisibleTextWatermark
+# from .visible_text import VisibleTextWatermark
 from .metadata_watermark import MetadataWatermark
+from server.src.visible_text import VisibleTextWatermark
+
 
 # ---------- helpers ----------
 def _expand(p: Optional[str]) -> Optional[str]:
