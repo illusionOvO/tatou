@@ -257,3 +257,20 @@ def test_create_watermark_response_structure(client, auth_headers, sample_pdf_pa
     
     # 验证 link 不是空的
     assert len(response_json["link"]) > 0
+
+
+
+def test_create_watermark_document_not_found(client, auth_headers):
+    """测试为不存在的文档创建水印"""
+    resp = client.post(
+        "/api/create-watermark/999999",  # 不存在的文档ID
+        headers=auth_headers,
+        json={
+            "method": "test-method",
+            "intended_for": "test",
+            "secret": "test-secret",
+            "key": "test-key",
+        }
+    )
+    # 应该返回404或410
+    assert resp.status_code in [404, 410]
