@@ -147,3 +147,5 @@ def test_cli_rejects_missing_secret(tmp_path):
         assert "argument" in result.stderr or "required" in result.stderr
 
     run_cli_test()
+
+
