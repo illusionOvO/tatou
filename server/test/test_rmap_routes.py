@@ -4,7 +4,8 @@ from server.src import rmap_routes
 from unittest.mock import MagicMock
 from sqlalchemy.exc import DBAPIError
 from server.src.rmap_routes import VisibleTextWatermark, MetadataWatermark
-
+import importlib
+from unittest.mock import patch # <-- 新增导入
 
 # ---------- Tests ----------
 
@@ -297,3 +298,54 @@ def test_rmap_get_link_watermark_order(client, mocker):
     # 2. 验证 MetadataWatermark 使用了 VisibleTextWatermark 的输出
     mock_xmp_instance.add_watermark.assert_called_once()
     assert mock_xmp_instance.add_watermark.call_args[0][0] == b'Output_From_VT'
+
+
+
+
+def test_config_missing_server_key_prevents_init(mocker):
+    """
+    测试 RMAP_SERVER_PRIV 文件缺失时是否正确抛出错误。
+    目标是 L49-52 和 _require_file (L33)。
+    """
+    # 1. Mock os.path.isfile 来模拟私钥文件缺失
+    mocker.patch('os.path.isfile', side_effect=lambda p: False if 'server_priv.asc' in p else True)
+    
+    # 2. Mock os.path.isdir 来防止 RMAP_KEYS_DIR 检查出错
+    mocker.patch('os.path.isdir', return_value=True)
+    
+    # 3. 使用 patch.dict 确保环境变量存在，但文件被 Mock 为缺失
+    with patch.dict('os.environ', {
+        "RMAP_SERVER_PRIV": "server_priv.asc",
+        "RMAP_SERVER_PUB": "server_pub.asc",
+    }, clear=False):
+        
+        # 4. 尝试重新加载模块；预期会失败
+        with pytest.raises(FileNotFoundError) as excinfo:
+            # 必须重新加载模块才能触发函数外的初始化逻辑
+            importlib.reload(rmap_routes) 
+        
+        # 断言正确的错误信息
+        assert "RMAP_SERVER_PRIV not found at:" in str(excinfo.value)
+        
+
+def test_config_missing_keys_dir_prevents_init(mocker):
+    """
+    测试 RMAP_KEYS_DIR 缺失时是否正确抛出 RuntimeError。
+    目标是 L44-47。
+    """
+    # 1. Mock os.path.isdir 来模拟密钥目录缺失
+    mocker.patch('os.path.isdir', return_value=False)
+    
+    # 2. Mock os.path.isfile 来防止后续的 FileNotFoundError
+    mocker.patch('os.path.isfile', return_value=True)
+
+    with patch.dict('os.environ', {
+        "RMAP_KEYS_DIR": "nonexistent/dir",
+    }, clear=False):
+        
+        # 3. 尝试重新加载模块；预期会失败
+        with pytest.raises(RuntimeError) as excinfo:
+            importlib.reload(rmap_routes) 
+        
+        # 断言正确的错误信息
+        assert "RMAP_KEYS_DIR not found or not a directory:" in str(excinfo.value)
