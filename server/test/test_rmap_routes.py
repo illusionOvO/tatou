@@ -399,11 +399,29 @@ def clean_rmap_routes(mocker):
     # 4. Mock 环境变量检查函数，使其总是返回 True
     mocker.patch('os.path.isdir', return_value=True)
     mocker.patch('os.path.isfile', return_value=True)
+
+    # 5. Mock os.getenv 返回有效的路径
+    mocker.patch('os.getenv', side_effect=lambda k, d=None: {
+        'RMAP_SERVER_PRIV': '/valid/path/server_priv.asc',
+        'RMAP_SERVER_PUB': '/valid/path/server_pub.asc',
+        'RMAP_KEYS_DIR': '/valid/path',
+        'RMAP_INPUT_PDF': '/valid/path/input.pdf'
+    }.get(k, d))
     
-    # 5. 重新加载模块
+    # 6. 重新加载模块
     importlib.reload(rmap_routes)
     
     yield
+
+
+
+
+
+
+    # # 5. 重新加载模块
+    # importlib.reload(rmap_routes)
     
-    # 清理
-    importlib.reload(rmap_routes)
+    # yield
+    
+    # # 清理
+    # importlib.reload(rmap_routes)
