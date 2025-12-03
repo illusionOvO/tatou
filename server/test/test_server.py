@@ -63,22 +63,17 @@ import tempfile
 import pytest
 import io
 import json
+import sys
+import os
 from unittest.mock import patch, MagicMock
 from pathlib import Path
 
-# 导入 server 模块
+# 添加项目路径到 sys.path
 sys.path.append(os.path.join(os.path.dirname(__file__), '..', 'src'))
-from server.src import server
 
-# 或者如果直接导入有问题，可以这样导入
-try:
-    from server.src.server import create_app, _safe_resolve_under_storage
-except ImportError:
-    # 备选导入方式
-    import sys
-    import os
-    sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
-    from server.src.server import create_app, _safe_resolve_under_storage
+# 导入 server 模块
+from server.src import server
+from server.src.server import create_app, _safe_resolve_under_storage, _sha256_file
 
 
 def test_safe_resolve_under_storage():
@@ -129,8 +124,8 @@ def test_upload_document_file_validation():
                                  headers=headers,
                                  content_type='multipart/form-data')
             assert response.status_code == 400
-            data = json.loads(response.data)
-            assert 'only PDF files are allowed' in data.get('error', '')
+            response_data = json.loads(response.data)
+            assert 'only PDF files are allowed' in response_data.get('error', '')
 
 
 def test_upload_empty_file():
@@ -181,8 +176,8 @@ def test_upload_invalid_pdf_header():
                                  headers=headers,
                                  content_type='multipart/form-data')
             assert response.status_code == 400
-            data = json.loads(response.data)
-            assert 'not a valid PDF' in data.get('error', '')
+            response_data = json.loads(response.data)
+            assert 'not a valid PDF' in response_data.get('error', '')
 
 
 def test_create_user_missing_fields():
@@ -232,9 +227,9 @@ def test_health_check():
     with app.test_client() as client:
         response = client.get('/healthz')
         assert response.status_code == 200
-        data = json.loads(response.data)
-        assert 'message' in data
-        assert 'db_connected' in data
+        response_data = json.loads(response.data)
+        assert 'message' in response_data
+        assert 'db_connected' in response_data
 
 
 def test_get_document_not_found():
@@ -298,11 +293,95 @@ def test_sha256_file():
     with tempfile.NamedTemporaryFile(delete=False) as f:
         f.write(b'test content')
         f.flush()
+        file_path = Path(f.name)
         
-        hash_result = server._sha256_file(Path(f.name))
-        # SHA256 of "test content"
-        expected = "956a5d1f2e5b1f38e2e3d3a5b5e5f3e5d1f2e5b1f38e2e3d3a5b5e5f3e5d1f2e5b"
-        assert len(hash_result) == 64  # SHA256 哈希长度
+        try:
+            hash_result = _sha256_file(file_path)
+            # SHA256 哈希长度应该是 64 个字符
+            assert len(hash_result) == 64
+            # 应该是十六进制字符串
+            assert all(c in '0123456789abcdef' for c in hash_result)
+        finally:
+            # 清理临时文件
+            file_path.unlink()
+
+
+def test_unauthorized_access():
+    """测试未授权访问"""
+    app = create_app()
+    app.config['TESTING'] = True
+    
+    with app.test_client() as client:
+        # 测试没有 token
+        response = client.get('/api/list-documents')
+        assert response.status_code == 401
+        
+        # 测试无效 token
+        response = client.get('/api/list-documents', 
+                            headers={'Authorization': 'Bearer invalid-token'})
+        assert response.status_code == 401
+
+
+def test_static_files():
+    """测试静态文件服务"""
+    app = create_app()
+    app.config['TESTING'] = True
+    
+    with app.test_client() as client:
+        # 测试首页
+        response = client.get('/')
+        assert response.status_code in [200, 404]  # 如果 index.html 不存在可能是 404
+        
+        # 测试静态文件路径
+        response = client.get('/static/some-file')
+        assert response.status_code == 404  # 文件不存在
+
+
+def test_upload_document_missing_file():
+    """测试上传文档缺少文件"""
+    app = create_app()
+    app.config['TESTING'] = True
+    
+    with app.test_client() as client:
+        with patch('server.src.server._serializer') as mock_serializer:
+            mock_serializer.return_value.loads.return_value = {
+                "uid": 1, 
+                "login": "testuser", 
+                "email": "a@b.com"
+            }
+            
+            response = client.post('/api/upload-document', 
+                                 data={},
+                                 headers={'Authorization': 'Bearer test-token'},
+                                 content_type='multipart/form-data')
+            assert response.status_code == 400
+            response_data = json.loads(response.data)
+            assert 'file is required' in response_data.get('error', '')
+
+
+def test_upload_document_empty_filename():
+    """测试上传文档文件名为空"""
+    app = create_app()
+    app.config['TESTING'] = True
+    
+    with app.test_client() as client:
+        with patch('server.src.server._serializer') as mock_serializer:
+            mock_serializer.return_value.loads.return_value = {
+                "uid": 1, 
+                "login": "testuser", 
+                "email": "a@b.com"
+            }
+            
+            data = {
+                'file': (io.BytesIO(b'%PDF-1.4\ntest'), '')
+            }
+            response = client.post('/api/upload-document', 
+                                 data=data,
+                                 headers={'Authorization': 'Bearer test-token'},
+                                 content_type='multipart/form-data')
+            assert response.status_code == 400
+            response_data = json.loads(response.data)
+            assert 'empty filename' in response_data.get('error', '')
 
 
 if __name__ == '__main__':
