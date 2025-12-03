@@ -152,6 +152,8 @@ def test_create_watermark_duplicate_link_retrieves_existing_id(client, mocker, u
                 "secret": "my_secret",
                 "key": "my_key",
             }
+            # **关键修复：添加认证头部**
+            headers={'Authorization': 'Bearer mock-token'}
         )
 
     # 5. 断言
