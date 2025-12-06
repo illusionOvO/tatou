@@ -292,3 +292,7 @@ resp*.asc
 resp*.json
 sample.pdf
 server/flag
+
+# --- Fuzz Testing ---
+fuzz_reports/
+crash_*.json

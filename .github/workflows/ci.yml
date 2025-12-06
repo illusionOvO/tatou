@@ -1,78 +1,38 @@
 name: CI
-
 on:
   push:
-    branches: [ main ]
+    branches: [ main, dev ]
   pull_request:
     branches: [ main ]
 
-permissions:
-  contents: read
-  packages: read
-  id-token: write
-
 jobs:
-  lint-and-test:
-    name: Lint / Typecheck / Test
+  test-and-fuzz:
     runs-on: ubuntu-latest
-    strategy:
-      matrix:
-        python: [3.11]
     steps:
-      - name: Checkout repo
-        uses: actions/checkout@v4
-
-      - name: Set up Python ${{ matrix.python }}
+      - uses: actions/checkout@v4
+      
+      - name: Set up Python
         uses: actions/setup-python@v4
         with:
-          python-version: ${{ matrix.python }}
-
-      - name: Cache pip
-        uses: actions/cache@v4
-        with:
-          path: ~/.cache/pip
-          key: ${{ runner.os }}-pip-${{ hashFiles('**/requirements.txt') }}
-          restore-keys: |
-            ${{ runner.os }}-pip-
-
-      - name: Install deps
+          python-version: "3.12"
+          
+      - name: Install dependencies
         run: |
-          python -m pip install --upgrade pip
+          pip install pytest pytest-cov requests ruff
           if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
-          # 固定 ruff 到新语法版本
-          pip install ruff==0.6.5 mypy pytest coverage bandit pip-audit
 
-      - name: Run ruff (fast lint)
+      - name: Run Unit Tests
         run: |
-          # 新命令：ruff check .
-          ruff check . --exit-zero --output-format=github
+          export PYTHONPATH=$PYTHONPATH:$(pwd)
+          python -m pytest -v server/test --cov=server/src
 
-      - name: Run mypy (static types)
-        run: mypy . || true
-
-      - name: Run bandit (security static scan)
-        run: bandit -r . -ll -iii || true
-
-      - name: Run pytest with coverage
+      - name: Start Server (Docker)
         run: |
-          coverage run -m pytest -q --maxfail=1 || true
-          coverage xml -i || true
-          coverage report || true
+          if [ -f .env.example ]; then cp .env.example .env; else touch .env; fi
+          docker compose up -d --build
+          sleep 10  # 等待服务器启动
 
-      - name: Upload coverage artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: coverage-xml
-          path: coverage.xml
-
-      - name: Run pip-audit (dependency vulnerabilities)
-        run: pip-audit -q || true
-
-  build-and-scan-image:
-    name: Build container image and scan
-    needs: lint-and-test
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout repo
-        uses: actions/checkout@v4
-
+      - name: Run Fuzz Tests
+        run: |
+          python Fuzz_test/make_pdf.py  # 现场生成 PDF
+          python Fuzz_test/fuzz_enhanced.py --url http://127.0.0.1:5000 --file Fuzz_test/Test.pdf
