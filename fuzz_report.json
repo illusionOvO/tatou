@@ -1,0 +1,162 @@
+{
+  "rounds": 120,
+  "summary": {
+    "login": {
+      "total": 20,
+      "2xx": 12,
+      "4xx": 8,
+      "5xx": 0,
+      "code_breakdown": {
+        "200": 12,
+        "401": 4,
+        "400": 4
+      },
+      "top_codes": [
+        [
+          200,
+          12
+        ],
+        [
+          401,
+          4
+        ],
+        [
+          400,
+          4
+        ]
+      ],
+      "success_rate": 0.6,
+      "client_err_rate": 0.4,
+      "server_err_rate": 0.0
+    },
+    "create_wm": {
+      "total": 18,
+      "2xx": 0,
+      "4xx": 18,
+      "5xx": 0,
+      "code_breakdown": {
+        "400": 16,
+        "404": 2
+      },
+      "top_codes": [
+        [
+          400,
+          16
+        ],
+        [
+          404,
+          2
+        ]
+      ],
+      "success_rate": 0.0,
+      "client_err_rate": 1.0,
+      "server_err_rate": 0.0
+    },
+    "upload": {
+      "total": 15,
+      "2xx": 2,
+      "4xx": 13,
+      "5xx": 0,
+      "code_breakdown": {
+        "201": 2,
+        "400": 13
+      },
+      "top_codes": [
+        [
+          400,
+          13
+        ],
+        [
+          201,
+          2
+        ]
+      ],
+      "success_rate": 0.13333333333333333,
+      "client_err_rate": 0.8666666666666667,
+      "server_err_rate": 0.0
+    },
+    "get_version": {
+      "total": 19,
+      "2xx": 0,
+      "4xx": 19,
+      "5xx": 0,
+      "code_breakdown": {
+        "404": 19
+      },
+      "top_codes": [
+        [
+          404,
+          19
+        ]
+      ],
+      "success_rate": 0.0,
+      "client_err_rate": 1.0,
+      "server_err_rate": 0.0
+    },
+    "create_user": {
+      "total": 12,
+      "2xx": 9,
+      "4xx": 3,
+      "5xx": 0,
+      "code_breakdown": {
+        "201": 9,
+        "400": 3
+      },
+      "top_codes": [
+        [
+          201,
+          9
+        ],
+        [
+          400,
+          3
+        ]
+      ],
+      "success_rate": 0.75,
+      "client_err_rate": 0.25,
+      "server_err_rate": 0.0
+    },
+    "read_wm": {
+      "total": 17,
+      "2xx": 0,
+      "4xx": 17,
+      "5xx": 0,
+      "code_breakdown": {
+        "400": 11,
+        "404": 6
+      },
+      "top_codes": [
+        [
+          400,
+          11
+        ],
+        [
+          404,
+          6
+        ]
+      ],
+      "success_rate": 0.0,
+      "client_err_rate": 1.0,
+      "server_err_rate": 0.0
+    },
+    "delete_doc": {
+      "total": 16,
+      "2xx": 0,
+      "4xx": 16,
+      "5xx": 0,
+      "code_breakdown": {
+        "404": 16
+      },
+      "top_codes": [
+        [
+          404,
+          16
+        ]
+      ],
+      "success_rate": 0.0,
+      "client_err_rate": 1.0,
+      "server_err_rate": 0.0
+    }
+  },
+  "generated_at": "2025-12-07T15:32:45.570692"
+}

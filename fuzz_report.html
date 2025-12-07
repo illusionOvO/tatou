@@ -1,0 +1,243 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8"/>
+  <title>Fuzz API Report</title>
+  <style>
+    body {
+      font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
+      background:#0b1020; color:#e5e7eb; margin:0; padding:24px;
+    }
+    .card {
+      background:#111827; border:1px solid #1f2937; border-radius:14px;
+      padding:18px 18px; margin-bottom:18px; box-shadow:0 8px 24px rgba(0,0,0,.35);
+    }
+    h1 { margin:0 0 6px 0; font-size:22px; }
+    .muted { color:#9ca3af; font-size:13px; }
+    table {
+      width:100%; border-collapse:collapse; font-size:14px;
+    }
+    th, td {
+      padding:10px 8px; border-bottom:1px solid #1f2937; vertical-align:top;
+    }
+    th { text-align:left; color:#cbd5e1; font-weight:600; }
+    tr:hover td { background:#0f172a; }
+    .mono { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
+    .small { font-size:12px; color:#cbd5e1; }
+    .ok { color:#16a34a; font-weight:600; }
+    .warn { color:#f59e0b; font-weight:600; }
+    .err { color:#ef4444; font-weight:600; }
+    .pill {
+      display:inline-block; padding:3px 8px; border-radius:999px;
+      background:#0f172a; border:1px solid #1f2937; font-size:12px; margin-right:6px;
+    }
+    .footer { margin-top:14px; color:#9ca3af; font-size:12px; }
+  </style>
+</head>
+<body>
+
+  <div class="card">
+    <h1>Fuzz API 测试报告</h1>
+    <div class="muted">生成时间：2025-12-07T15:32:45.570692</div>
+    <div style="margin-top:10px">
+      <span class="pill">总轮数：120</span>
+      <span class="pill">端口数：7</span>
+      <span class="pill">总请求：117</span>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2 style="margin:0 0 10px 0;font-size:18px;">端口统计</h2>
+    <table>
+      <thead>
+        <tr>
+          <th>Endpoint</th>
+          <th>Total</th>
+          <th>2xx</th>
+          <th>4xx</th>
+          <th>5xx</th>
+          <th>Success Rate</th>
+          <th>4xx Rate</th>
+          <th>5xx Rate</th>
+          <th>Top Status Codes</th>
+        </tr>
+      </thead>
+      <tbody>
+        
+        <tr>
+          <td class="mono">login</td>
+          <td>20</td>
+          <td class="ok">12</td>
+          <td class="warn">8</td>
+          <td class="err">0</td>
+          <td>60.0%
+    <div style="background:#e5e7eb;border-radius:6px;overflow:hidden;height:10px;width:120px">
+      <div style="background:#16a34a;height:10px;width:72px"></div>
+    </div>
+    </td>
+          <td>40.0%
+    <div style="background:#e5e7eb;border-radius:6px;overflow:hidden;height:10px;width:120px">
+      <div style="background:#f59e0b;height:10px;width:48px"></div>
+    </div>
+    </td>
+          <td>0.0%
+    <div style="background:#e5e7eb;border-radius:6px;overflow:hidden;height:10px;width:120px">
+      <div style="background:#ef4444;height:10px;width:0px"></div>
+    </div>
+    </td>
+          <td class="mono small">200×12, 401×4, 400×4</td>
+        </tr>
+        
+        <tr>
+          <td class="mono">get_version</td>
+          <td>19</td>
+          <td class="ok">0</td>
+          <td class="warn">19</td>
+          <td class="err">0</td>
+          <td>0.0%
+    <div style="background:#e5e7eb;border-radius:6px;overflow:hidden;height:10px;width:120px">
+      <div style="background:#16a34a;height:10px;width:0px"></div>
+    </div>
+    </td>
+          <td>100.0%
+    <div style="background:#e5e7eb;border-radius:6px;overflow:hidden;height:10px;width:120px">
+      <div style="background:#f59e0b;height:10px;width:120px"></div>
+    </div>
+    </td>
+          <td>0.0%
+    <div style="background:#e5e7eb;border-radius:6px;overflow:hidden;height:10px;width:120px">
+      <div style="background:#ef4444;height:10px;width:0px"></div>
+    </div>
+    </td>
+          <td class="mono small">404×19</td>
+        </tr>
+        
+        <tr>
+          <td class="mono">create_wm</td>
+          <td>18</td>
+          <td class="ok">0</td>
+          <td class="warn">18</td>
+          <td class="err">0</td>
+          <td>0.0%
+    <div style="background:#e5e7eb;border-radius:6px;overflow:hidden;height:10px;width:120px">
+      <div style="background:#16a34a;height:10px;width:0px"></div>
+    </div>
+    </td>
+          <td>100.0%
+    <div style="background:#e5e7eb;border-radius:6px;overflow:hidden;height:10px;width:120px">
+      <div style="background:#f59e0b;height:10px;width:120px"></div>
+    </div>
+    </td>
+          <td>0.0%
+    <div style="background:#e5e7eb;border-radius:6px;overflow:hidden;height:10px;width:120px">
+      <div style="background:#ef4444;height:10px;width:0px"></div>
+    </div>
+    </td>
+          <td class="mono small">400×16, 404×2</td>
+        </tr>
+        
+        <tr>
+          <td class="mono">read_wm</td>
+          <td>17</td>
+          <td class="ok">0</td>
+          <td class="warn">17</td>
+          <td class="err">0</td>
+          <td>0.0%
+    <div style="background:#e5e7eb;border-radius:6px;overflow:hidden;height:10px;width:120px">
+      <div style="background:#16a34a;height:10px;width:0px"></div>
+    </div>
+    </td>
+          <td>100.0%
+    <div style="background:#e5e7eb;border-radius:6px;overflow:hidden;height:10px;width:120px">
+      <div style="background:#f59e0b;height:10px;width:120px"></div>
+    </div>
+    </td>
+          <td>0.0%
+    <div style="background:#e5e7eb;border-radius:6px;overflow:hidden;height:10px;width:120px">
+      <div style="background:#ef4444;height:10px;width:0px"></div>
+    </div>
+    </td>
+          <td class="mono small">400×11, 404×6</td>
+        </tr>
+        
+        <tr>
+          <td class="mono">delete_doc</td>
+          <td>16</td>
+          <td class="ok">0</td>
+          <td class="warn">16</td>
+          <td class="err">0</td>
+          <td>0.0%
+    <div style="background:#e5e7eb;border-radius:6px;overflow:hidden;height:10px;width:120px">
+      <div style="background:#16a34a;height:10px;width:0px"></div>
+    </div>
+    </td>
+          <td>100.0%
+    <div style="background:#e5e7eb;border-radius:6px;overflow:hidden;height:10px;width:120px">
+      <div style="background:#f59e0b;height:10px;width:120px"></div>
+    </div>
+    </td>
+          <td>0.0%
+    <div style="background:#e5e7eb;border-radius:6px;overflow:hidden;height:10px;width:120px">
+      <div style="background:#ef4444;height:10px;width:0px"></div>
+    </div>
+    </td>
+          <td class="mono small">404×16</td>
+        </tr>
+        
+        <tr>
+          <td class="mono">upload</td>
+          <td>15</td>
+          <td class="ok">2</td>
+          <td class="warn">13</td>
+          <td class="err">0</td>
+          <td>13.3%
+    <div style="background:#e5e7eb;border-radius:6px;overflow:hidden;height:10px;width:120px">
+      <div style="background:#16a34a;height:10px;width:16px"></div>
+    </div>
+    </td>
+          <td>86.7%
+    <div style="background:#e5e7eb;border-radius:6px;overflow:hidden;height:10px;width:120px">
+      <div style="background:#f59e0b;height:10px;width:104px"></div>
+    </div>
+    </td>
+          <td>0.0%
+    <div style="background:#e5e7eb;border-radius:6px;overflow:hidden;height:10px;width:120px">
+      <div style="background:#ef4444;height:10px;width:0px"></div>
+    </div>
+    </td>
+          <td class="mono small">400×13, 201×2</td>
+        </tr>
+        
+        <tr>
+          <td class="mono">create_user</td>
+          <td>12</td>
+          <td class="ok">9</td>
+          <td class="warn">3</td>
+          <td class="err">0</td>
+          <td>75.0%
+    <div style="background:#e5e7eb;border-radius:6px;overflow:hidden;height:10px;width:120px">
+      <div style="background:#16a34a;height:10px;width:90px"></div>
+    </div>
+    </td>
+          <td>25.0%
+    <div style="background:#e5e7eb;border-radius:6px;overflow:hidden;height:10px;width:120px">
+      <div style="background:#f59e0b;height:10px;width:30px"></div>
+    </div>
+    </td>
+          <td>0.0%
+    <div style="background:#e5e7eb;border-radius:6px;overflow:hidden;height:10px;width:120px">
+      <div style="background:#ef4444;height:10px;width:0px"></div>
+    </div>
+    </td>
+          <td class="mono small">201×9, 400×3</td>
+        </tr>
+        
+      </tbody>
+    </table>
+    <div class="footer">
+      说明：Success/4xx/5xx Rate 为该端口请求中对应区间占比；Top Status Codes 为出现最多的状态码。
+    </div>
+  </div>
+
+</body>
+</html>
