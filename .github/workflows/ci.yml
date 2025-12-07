@@ -2,133 +2,58 @@ name: CI
 
 on:
   push:
-    branches: [ main, dev ]  # 监听 dev 和 main 分支的提交
+    branches: [ "main", "dev" ]
   pull_request:
-    branches: [ main ]      # 监听针对 main 的 PR
-
-permissions:
-  contents: read
-  packages: read
-  id-token: write
+    branches: [ "main", "dev" ]
 
 jobs:
-  # ====================================================
-  # Job 1: 单元测试与静态检查
-  lint-and-test:
-    name: Unit Tests & Linting
+  test:
     runs-on: ubuntu-latest
-    strategy:
-      matrix:
-        python: ["3.12"]
+
     steps:
       - name: Checkout repo
         uses: actions/checkout@v4
 
-      - name: Set up Python ${{ matrix.python }}
-        uses: actions/setup-python@v4
+      - name: Set up Python
+        uses: actions/setup-python@v5
         with:
-          python-version: ${{ matrix.python }}
+          python-version: "3.11"
 
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
-          if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
-          pip install ruff mypy pytest pytest-cov bandit pip-audit
+          pip install -r server/requirements.txt
+          pip install pytest pytest-cov hypothesis
 
-      - name: Run ruff (Fast Lint)
+      # 1) 单元测试 + 覆盖率 gate
+      - name: Run pytest with coverage
         run: |
-          ruff check . --exit-zero --output-format=github
+          pytest server/unitest \
+            --cov=server/src \
+            --cov-report=term-missing \
+            --cov-report=html:htmlcov \
+            --cov-fail-under=75
 
-      - name: Run mypy (Static Type Check)
-        run: mypy . || true
-
-      - name: Run bandit (Security Scan)
-        run: bandit -r . -ll -iii || true
-
-      - name: Run pytest (Unit Tests)
+      # 2) Fuzz 测试（轮数缩小一点，CI 里控制时间）
+      - name: Run fuzz tests
         run: |
-          export PYTHONPATH=$PYTHONPATH:$(pwd)
-          
-          # [关键修改] 增加 --cov-report=html
-          # 同时保留 xml 也没坏处，或者只用 html
-          python -m pytest -v server/test --cov=server/src --cov-report=xml --cov-report=html
+          pytest server/unitest/test_fuzz_api_random.py -s
+        env:
+          FUZZ_ROUNDS: "60"   # 如果你代码支持读环境变量可用，不支持也没关系
 
-      - name: Upload Coverage Report
-        if: success() || failure()
+      # 3) 上传 coverage HTML 报告
+      - name: Upload coverage report
         uses: actions/upload-artifact@v4
         with:
-          name: coverage-report-html  # 改个名字，方便识别
-          path: htmlcov/              # [关键修改] 上传整个 htmlcov 文件夹
+          name: coverage-html
+          path: htmlcov
 
-  # ====================================================
-  # Job 2: Fuzz 测试 (Integration Tests)
-  # ====================================================
-  integration-test:
-    name: Fuzz / Integration Tests
-    needs: lint-and-test  # 只有单元测试通过了才跑这个
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout repo
-        uses: actions/checkout@v4
-
-      # 1. 启动 Docker 服务
-      - name: Start Services with Docker Compose
-        run: |
-          # 准备环境变量
-          if [ -f .env.example ]; then cp .env.example .env; else touch .env; fi
-          
-          # 启动容器
-          docker compose up -d --build
-          
-          # 健康检查循环 (等待服务启动)
-          echo "Waiting for server to be ready..."
-          for i in {1..60}; do
-            if curl -s http://127.0.0.1:5000/healthz > /dev/null; then
-              echo "Server is up!"
-              break
-            fi
-            echo "Waiting..."
-            sleep 2
-          done
-
-      # 2. 准备 Fuzz 测试环境
-      - name: Set up Python for Fuzzer
-        uses: actions/setup-python@v4
-        with:
-          python-version: "3.12"
-
-      - name: Install Fuzzer deps
-        run: pip install requests
-
-      # 3. 运行 Fuzz 脚本
-      - name: Run Fuzz Test Script
-        run: |
-          # 现场生成测试用 PDF (双重保险，防止文件未上传)
-          python Fuzz_test/make_pdf.py
-          
-          # 运行 Fuzz 脚本攻击本地 Docker 容器
-          # 如果脚本发现 500 错误，它会返回非零退出码，导致 CI 变红
-          python Fuzz_test/fuzz_enhanced.py --url http://127.0.0.1:5000 --file Fuzz_test/Test.pdf
-
-      # 4. 上传崩溃报告 (如果测试失败)
-      - name: Upload Fuzz Crash Reports
-        if: failure()
+      # 4) 上传 fuzz 报告
+      - name: Upload fuzz report
         uses: actions/upload-artifact@v4
         with:
-          name: fuzz-crash-reports
-          path: fuzz_reports/
-
-  # ====================================================
-  # Job 3: 构建最终镜像 (Build Image)
-  # ====================================================
-  build-image:
-    name: Build Container Image
-    needs: lint-and-test
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout repo
-        uses: actions/checkout@v4
-      
-      - name: Build Docker Image
-        run: |
-          docker build -t tatou-server:latest -f server/Dockerfile .
+          name: fuzz-report
+          path: |
+            fuzz_report.html
+            fuzz_report.json
+            fuzz_report.csv
