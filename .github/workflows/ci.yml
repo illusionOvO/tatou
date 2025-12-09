@@ -26,10 +26,11 @@ jobs:
           pip install pytest pytest-cov hypothesis
 
       # 1) 单元测试 + 覆盖率 gate
-      - name: Run pytest with coverage
+      - name: Run pytest with branch coverage
         run: |
           pytest server/unitest \
-            --cov=server/src \
+            --cov=server/src.server \
+            --cov-branch \
             --cov-report=term-missing \
             --cov-report=html:htmlcov \
             --cov-fail-under=75
