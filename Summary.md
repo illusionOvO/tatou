@@ -14,7 +14,7 @@ TEST_MODE=1 pytest --cov=server/src --cov-branch --cov-report=html:htmlcov
 ```
 
 # GitHub Actions pull request
-- PR URL (dev -> main): [162cb807fa9624be6aa77c285d536b35c6529f8b](https://github.com/illusionOvO/tatou/pull/2)
+- PR URL (dev -> main): [https://github.com/illusionOvO/tatou/pull/2]
 The ci.yml GitHub Actions workflow runs pytest with TEST_MODE=1 on every pull request targeting the main branch.
 
 ## List of new tests (supplementary folder)
