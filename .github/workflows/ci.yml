@@ -1,38 +1,60 @@
 name: CI
+
 on:
   push:
-    branches: [ main, dev ]
+    branches: [ "main", "dev" ]
   pull_request:
-    branches: [ main ]
+    branches: [ "main", "dev" ]
 
 jobs:
-  test-and-fuzz:
+  test:
     runs-on: ubuntu-latest
+
     steps:
-      - uses: actions/checkout@v4
-      
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
       - name: Set up Python
-        uses: actions/setup-python@v4
+        uses: actions/setup-python@v5
         with:
-          python-version: "3.12"
-          
+          python-version: "3.11"
+
       - name: Install dependencies
         run: |
-          pip install pytest pytest-cov requests ruff
-          if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install pytest pytest-cov hypothesis
 
-      - name: Run Unit Tests
+      # 1) 单元测试 + 覆盖率 gate
+      - name: Run pytest with branch coverage
         run: |
-          export PYTHONPATH=$PYTHONPATH:$(pwd)
-          python -m pytest -v server/test --cov=server/src
+          pytest server/unitest \
+            --cov=server.src \
+            --cov-branch \
+            --cov-report=term-missing \
+            --cov-report=html:htmlcov \
+            --cov-fail-under=75
 
-      - name: Start Server (Docker)
+      # 2) Fuzz 测试（轮数缩小一点，CI 里控制时间）
+      - name: Run fuzz tests
         run: |
-          if [ -f .env.example ]; then cp .env.example .env; else touch .env; fi
-          docker compose up -d --build
-          sleep 10  # 等待服务器启动
+          pytest server/unitest/test_fuzz_api_random.py -s
+        env:
+          FUZZ_ROUNDS: "60"   # 如果你代码支持读环境变量可用，不支持也没关系
 
-      - name: Run Fuzz Tests
-        run: |
-          python Fuzz_test/make_pdf.py  # 现场生成 PDF
-          python Fuzz_test/fuzz_enhanced.py --url http://127.0.0.1:5000 --file Fuzz_test/Test.pdf
+      # 3) 上传 coverage HTML 报告
+      - name: Upload coverage report
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-html
+          path: htmlcov
+
+      # 4) 上传 fuzz 报告
+      - name: Upload fuzz report
+        uses: actions/upload-artifact@v4
+        with:
+          name: fuzz-report
+          path: |
+            fuzz_report.html
+            fuzz_report.json
+            fuzz_report.csv

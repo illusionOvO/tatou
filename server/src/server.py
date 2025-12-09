@@ -61,7 +61,10 @@ def _safe_resolve_under_storage(p: str | Path, storage_root: Path) -> Path:
 # ---------------------------------------------------------------------------
 
 def db_url(app) -> str:
-    # 检查是否配置了通用的 SQLAlchemy URI (这是 pytest 设置的)
+    #For TEST_MODE
+    if os.getenv("TEST_MODE") == "1":
+        return "sqlite+pysqlite:///:memory:"
+
     if 'SQLALCHEMY_DATABASE_URI' in app.config:
         return app.config['SQLALCHEMY_DATABASE_URI']
     

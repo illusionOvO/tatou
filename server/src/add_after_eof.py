@@ -28,11 +28,7 @@ class AddAfterEOF:
             这里的内容你可以自由发挥，只要把关键信息写清楚。
             """
             return (
-                "trailer-hmac: 在 PDF 文件 EOF 后追加一段带 HMAC 的 JSON trailer。\n"
-                "- 只适用于 PDF 文件；\n"
-                "- 参数：secret(str), key(str), position='eof' 或 None；\n"
-                "- position 只能是 'eof'，否则会报错；\n"
-                "- 读取时需要提供相同的 key 验证 MAC。"
+                "trailer-hmac"
             )
 
     def _build_payload(self, secret: str, key: str) -> str:
